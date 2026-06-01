@@ -14,6 +14,9 @@ FROM ${MULTICA_IMAGE}:${MULTICA_TAG} AS multica
 # ---------------------------------------------------------------------------
 FROM debian:stable-slim AS base
 
+# nvm requires bash; default /bin/sh is dash (https://github.com/nvm-sh/nvm#installing-in-docker)
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 WORKDIR /app
 
 COPY --from=multica /app/multica /app/multica
@@ -21,9 +24,6 @@ COPY --from=multica /app/multica /app/multica
 ARG USER_UID=1000
 ARG USER_GID=1000
 ARG USERNAME=agent
-# Defaults: nvm master branch + latest Node. Pin with e.g. NVM_VERSION=0.40.4 NODE_VERSION=24.15.0
-ARG NVM_VERSION=master
-ARG NODE_VERSION=node
 ARG GIT_USER_NAME=Multica Agent
 ARG GIT_USER_EMAIL=agent@example.com
 
@@ -58,17 +58,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p /workspaces && chown ${USER_UID}:${USER_GID} /workspaces
 
 USER ${USERNAME}
+ARG NVM_VERSION=master
+ARG NODE_VERSION=node
 ENV NVM_DIR=/home/${USERNAME}/.nvm
-RUN set -eux; \
-  nvm_ref="${NVM_VERSION}"; \
-  if [ "${nvm_ref}" != "master" ]; then nvm_ref="v${nvm_ref#v}"; fi; \
-  curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_ref}/install.sh" | bash; \
-  . "${NVM_DIR}/nvm.sh"; \
-  nvm install "${NODE_VERSION}"; \
-  nvm alias default "${NODE_VERSION}"; \
-  NODE_BIN_DIR="$(dirname "$(nvm which default)")"; \
-  mkdir -p "${HOME}/.local"; \
-  ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
+ENV BASH_ENV=/home/${USERNAME}/.bash_env
+RUN touch "${BASH_ENV}" \
+ && echo '. "${NVM_DIR}/nvm.sh"' >> "${BASH_ENV}" \
+ && echo '. "${BASH_ENV}"' >> ~/.bashrc
+RUN if [ "${NVM_VERSION}" = "master" ]; then \
+      install_url="https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh"; \
+    else \
+      install_url="https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION#v}/install.sh"; \
+    fi; \
+    curl -o- "${install_url}" | PROFILE="${BASH_ENV}" bash
+RUN echo "${NODE_VERSION}" > "${HOME}/.nvmrc" \
+ && nvm install \
+ && nvm alias default "${NODE_VERSION}" \
+ && NODE_BIN_DIR="$(dirname "$(nvm which default)")" \
+ && echo "export PATH=\"${NODE_BIN_DIR}:\${PATH}\"" >> "${BASH_ENV}" \
+ && mkdir -p "${HOME}/.local" \
+ && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
