@@ -2,29 +2,54 @@
 
 Docker images for [Multica](https://github.com/multica/multica) agent daemons — one **tagged image per AI CLI**.
 
-| Image tag suffix | `Dockerfile.agent` target | Agent CLI |
-|------------------|---------------------------|-----------|
-| `-claude` | `claude` | [Claude Code](https://claude.ai/code) |
-| `-cursor` | `cursor` | [Cursor CLI](https://cursor.com) |
-| `-opencode` | `opencode` | [OpenCode](https://opencode.ai) |
+| Image | `Dockerfile.agent` target | Agent CLI |
+|-------|---------------------------|-----------|
+| `ghcr.io/sapk/multica-agent-claude` | `claude` | [Claude Code](https://claude.ai/code) |
+| `ghcr.io/sapk/multica-agent-cursor` | `cursor` | [Cursor CLI](https://cursor.com) |
+| `ghcr.io/sapk/multica-agent-opencode` | `opencode` | [OpenCode](https://opencode.ai) |
 
 Shared layers live in the `base` stage (multica CLI from the official backend image, Podman, nvm, pnpm, entrypoint). Each variant adds its CLI.
 
-## Build
+## Pull images
 
-**All variants** (default registry prefix and tag):
+Published by CI to [GitHub Container Registry](https://github.com/sapk?tab=packages) (`ghcr.io/sapk/…`).
+
+```bash
+docker pull ghcr.io/sapk/multica-agent-claude:latest
+docker pull ghcr.io/sapk/multica-agent-cursor:latest
+docker pull ghcr.io/sapk/multica-agent-opencode:latest
+```
+
+Pin a daily snapshot or release:
+
+```bash
+docker pull ghcr.io/sapk/multica-agent-claude:2026-06-01
+docker pull ghcr.io/sapk/multica-agent-claude:1.0.0   # after git tag v1.0.0
+docker pull ghcr.io/sapk/multica-agent-claude:sha-a248603
+```
+
+**Browse tags:** open the package page for each variant (e.g. [multica-agent-claude](https://github.com/users/sapk/packages/container/multica-agent-claude)) or run:
+
+```bash
+gh api user/packages/container/multica-agent-claude/versions \
+  --jq '.[].metadata.container.tags[]' | sort -u
+```
+
+If `docker pull` returns 404, the package may be private — make it public under **Package settings → Change visibility**, or `docker login ghcr.io`.
+
+## Build locally
+
+**All variants:**
 
 ```bash
 make build-all
-# → ghcr.io/multica-ai/multica-agent-claude:latest
-# → ghcr.io/multica-ai/multica-agent-cursor:latest
-# → ghcr.io/multica-ai/multica-agent-opencode:latest
+# → ghcr.io/sapk/multica-agent-claude:latest (local tag; not pushed)
 ```
 
 **Single variant:**
 
 ```bash
-make build-cursor IMAGE=myregistry/multica-agent TAG=v0.1.0
+make build-cursor IMAGE=ghcr.io/sapk/multica-agent TAG=local
 ```
 
 **Plain `docker build`:**
@@ -32,7 +57,7 @@ make build-cursor IMAGE=myregistry/multica-agent TAG=v0.1.0
 ```bash
 docker build -f Dockerfile.agent --target claude \
   --build-arg MULTICA_TAG=v0.1.12 \
-  -t ghcr.io/multica-ai/multica-agent-claude:v0.1.12 \
+  -t ghcr.io/sapk/multica-agent-claude:local \
   .
 ```
 
@@ -48,8 +73,8 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `IMAGE` | `ghcr.io/multica-ai/multica-agent` | Image name prefix (variant appended: `-claude`, etc.) |
-| `TAG` | `latest` | Image tag |
+| `IMAGE` | `ghcr.io/sapk/multica-agent` | Image name prefix (variant appended: `-claude`, etc.) |
+| `TAG` | `latest` | Local image tag |
 | `MULTICA_IMAGE` | `ghcr.io/multica-ai/multica-backend` | Source of `/app/multica` |
 | `MULTICA_TAG` | `latest` | Backend image tag |
 
@@ -57,23 +82,25 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 
 | Build arg | Default | Purpose |
 |-----------|---------|---------|
-| `USER_UID` / `USER_GID` | `1000` | Container user |
+| `USER_UID` / `USER_GID` | `1000` | Container user (`agent`) |
 | `GIT_USER_NAME` / `GIT_USER_EMAIL` | placeholder | Baked `.gitconfig` |
-| `NVM_VERSION` | `master` | nvm ref (`master` = rolling; pin e.g. `0.40.4` → tag `v0.40.4`) |
-| `NODE_VERSION` | `node` | nvm version (`node` = latest; pin e.g. `24.15.0`) |
+| `NVM_VERSION` | `master` | nvm ref (`master` = rolling; pin e.g. `0.40.4`) |
+| `NODE_VERSION` | `node` | Node via nvm (`node` = latest; pin e.g. `24.15.0`) |
 
 Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
 
 ## CI
 
-GitHub Actions (`.github/workflows/docker.yml`) builds and pushes all three variants to GHCR:
+GitHub Actions (`.github/workflows/docker.yml`) builds and pushes to GHCR:
 
-| Trigger | Images |
-|---------|--------|
-| Push to `main` | `:latest` + `:sha-…` |
-| Git tag `v*.*.*` | semver tags + `:latest` (stable releases) |
-| **Daily 06:00 UTC** | Refreshes `:latest` and adds `:YYYY-MM-DD` (rolling upstream pins) |
+| Trigger | Tags (per variant) |
+|---------|-------------------|
+| Push to `main` | `latest`, `sha-<commit>` |
+| Git tag `v*.*.*` | `1.2.3`, `1.2`, `latest`, `sha-…` |
+| **Daily 06:00 UTC** | `latest`, `YYYY-MM-DD` |
 | Pull request | Build only (no push) |
+
+Workflow runs: https://github.com/sapk/multica-docker-env/actions
 
 ## License
 

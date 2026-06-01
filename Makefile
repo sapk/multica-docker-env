@@ -5,7 +5,7 @@
 #   make build-claude IMAGE=ghcr.io/myorg/multica-agent TAG=v0.1.0
 #   make build-all MULTICA_TAG=v0.1.12 TAG=latest
 
-IMAGE ?= ghcr.io/multica-ai/multica-agent
+IMAGE ?= ghcr.io/sapk/multica-agent
 TAG ?= latest
 MULTICA_IMAGE ?= ghcr.io/multica-ai/multica-backend
 MULTICA_TAG ?= latest
