@@ -1,0 +1,124 @@
+# Multica agent images: shared base + per-CLI targets.
+#
+#   make build-all
+#   make build-claude IMAGE=ghcr.io/org/multica-agent TAG=v1.0.0
+#
+# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode> -t <image> .
+
+ARG MULTICA_IMAGE=ghcr.io/multica-ai/multica-backend
+ARG MULTICA_TAG=latest
+FROM ${MULTICA_IMAGE}:${MULTICA_TAG} AS multica
+
+# ---------------------------------------------------------------------------
+# base — multica CLI, Podman, nvm, pnpm, entrypoint (no agent CLI)
+# ---------------------------------------------------------------------------
+FROM debian:stable-slim AS base
+
+WORKDIR /app
+
+COPY --from=multica /app/multica /app/multica
+
+ARG USER_UID=1000
+ARG USER_GID=1000
+ARG USERNAME=agent
+# Defaults: nvm master branch + latest Node. Pin with e.g. NVM_VERSION=0.40.4 NODE_VERSION=24.15.0
+ARG NVM_VERSION=master
+ARG NODE_VERSION=node
+ARG GIT_USER_NAME=Multica Agent
+ARG GIT_USER_EMAIL=agent@example.com
+
+RUN groupadd --gid ${USER_GID} ${USERNAME} \
+ && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      tzdata \
+      bash \
+      curl \
+      git \
+      jq ripgrep \
+      podman \
+      passt \
+      aardvark-dns \
+      netavark \
+      fuse-overlayfs \
+      slirp4netns \
+      uidmap \
+  && rm -rf /var/lib/apt/lists/* \
+  && touch /etc/subuid /etc/subgid \
+  && sed -i "/^${USERNAME}:/d" /etc/subuid 2>/dev/null || true \
+  && sed -i "/^${USERNAME}:/d" /etc/subgid 2>/dev/null || true \
+  && echo "${USERNAME}:100000:65536" >> /etc/subuid \
+  && echo "${USERNAME}:100000:65536" >> /etc/subgid \
+  && ln -sf /usr/bin/podman /usr/local/bin/docker \
+  && mkdir -p /home/${USERNAME}/.config/containers \
+  && printf '[network]\nfirewall_driver = "none"\nnetwork_cmd_path = "/usr/bin/pasta"\n\n[engine]\nhelper_binaries_dir = ["/usr/libexec/podman", "/usr/lib/podman", "/usr/bin", "/home/%s/.local/bin"]\n' "${USERNAME}" > /home/${USERNAME}/.config/containers/containers.conf \
+  && chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config
+
+RUN mkdir -p /workspaces && chown ${USER_UID}:${USER_GID} /workspaces
+
+USER ${USERNAME}
+ENV NVM_DIR=/home/${USERNAME}/.nvm
+RUN set -eux; \
+  nvm_ref="${NVM_VERSION}"; \
+  if [ "${nvm_ref}" != "master" ]; then nvm_ref="v${nvm_ref#v}"; fi; \
+  curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_ref}/install.sh" | bash; \
+  . "${NVM_DIR}/nvm.sh"; \
+  nvm install "${NODE_VERSION}"; \
+  nvm alias default "${NODE_VERSION}"; \
+  NODE_BIN_DIR="$(dirname "$(nvm which default)")"; \
+  mkdir -p "${HOME}/.local"; \
+  ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
+RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
+
+ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
+
+RUN printf '[user]\n\tname = %s\n\temail = %s\n[init]\n\tdefaultBranch = main\n' \
+    "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" > /home/${USERNAME}/.gitconfig
+
+WORKDIR /workspaces
+
+ENV PATH="${PNPM_HOME}:/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:/app:${PATH}"
+ENV DOCKER_HOST="unix:///tmp/podman.sock"
+ENV TESTCONTAINERS_HOST_OVERRIDE="localhost"
+ENV TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/tmp/podman.sock"
+ENV TESTCONTAINERS_RYUK_DISABLED="true"
+ENV AARDVARK_BINARY="/usr/bin/aardvark-dns"
+
+COPY --chown=${USER_UID}:${USER_GID} docker/entrypoint-podman.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["/app/multica", "daemon", "start", "--foreground"]
+
+# ---------------------------------------------------------------------------
+# claude — Claude Code CLI
+# ---------------------------------------------------------------------------
+FROM base AS claude
+
+ARG USERNAME=agent
+
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV MULTICA_CLAUDE_PATH=/home/${USERNAME}/.local/bin/claude
+
+# ---------------------------------------------------------------------------
+# cursor — Cursor CLI
+# ---------------------------------------------------------------------------
+FROM base AS cursor
+
+ARG USERNAME=agent
+
+RUN curl https://cursor.com/install -fsS | bash
+ENV MULTICA_CURSOR_PATH=/home/${USERNAME}/.local/bin/cursor-agent
+
+# ---------------------------------------------------------------------------
+# opencode — OpenCode CLI
+# ---------------------------------------------------------------------------
+FROM base AS opencode
+
+ARG USERNAME=agent
+
+RUN curl -fsSL https://opencode.ai/install | bash
+ENV MULTICA_OPENCODE_PATH=/home/${USERNAME}/.opencode/bin/opencode
+
+RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/opencode
