@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       bash \
       curl \
       git \
+      openssh-client \
       jq ripgrep \
       podman \
       passt \
@@ -82,7 +83,9 @@ RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(whi
 
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
 
-RUN printf '[user]\n\tname = %s\n\temail = %s\n[init]\n\tdefaultBranch = main\n' \
+RUN mkdir -p /home/${USERNAME}/.ssh \
+ && chmod 700 /home/${USERNAME}/.ssh \
+ && printf '[user]\n\tname = %s\n\temail = %s\n[init]\n\tdefaultBranch = main\n' \
     "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" > /home/${USERNAME}/.gitconfig
 
 WORKDIR /workspaces
