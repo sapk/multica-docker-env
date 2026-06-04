@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [claude, cursor, opencode]
+        variant: [claude, cursor, opencode, codex, gemini, agy]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
