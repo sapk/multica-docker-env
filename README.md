@@ -108,6 +108,28 @@ GitHub Actions (`.github/workflows/docker.yml`) builds and pushes to GHCR:
 
 Workflow runs: https://github.com/sapk/multica-docker-env/actions
 
+### Staging builds
+
+`.github/workflows/staging-build.yml` builds the backend and all agent images from [`sapk-fork/multica`](https://github.com/sapk-fork/multica) `features/staging`:
+
+| Trigger | Tags (per variant) |
+|---------|-------------------|
+| `repository_dispatch` (`staging-push`) | `staging`, `staging-sha-<commit>` |
+| `workflow_dispatch` (manual) | `staging`, `staging-sha-<commit>` |
+
+The backend image is also published as `ghcr.io/sapk/multica-backend:staging`.
+
+To trigger from a workflow in `sapk-fork/multica`:
+
+```yaml
+- uses: peter-evans/repository-dispatch@v3
+  with:
+    repository: sapk/multica-docker-env
+    token: ${{ secrets.DISPATCH_TOKEN }}
+    event-type: staging-push
+    client-payload: '{"ref": "features/staging"}'
+```
+
 ## License
 
 MIT for files in this repo. The `multica` binary is part of [Multica](https://github.com/multica/multica) — see its [LICENSE](https://github.com/multica/multica/blob/main/LICENSE).

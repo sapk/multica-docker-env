@@ -1,0 +1,147 @@
+name: Staging Build
+
+on:
+  repository_dispatch:
+    types: [staging-push]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref on sapk-fork/multica to build (branch, tag, or SHA)"
+        required: false
+        default: "features/staging"
+        type: string
+      push:
+        description: "Push images to GHCR"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  STAGING_REPO: sapk-fork/multica
+  BACKEND_IMAGE: ghcr.io/sapk/multica-backend
+  AGENT_IMAGE_PREFIX: ghcr.io/sapk/multica-agent
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+      push: ${{ steps.resolve.outputs.push }}
+    steps:
+      - name: Resolve inputs
+        id: resolve
+        run: |
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            ref="${{ github.event.client_payload.ref }}"
+            echo "ref=${ref:-features/staging}" >> "$GITHUB_OUTPUT"
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            ref="${{ inputs.ref }}"
+            push="${{ inputs.push }}"
+            echo "ref=${ref:-features/staging}" >> "$GITHUB_OUTPUT"
+            echo "push=${push:-true}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-backend:
+    needs: resolve
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - name: Checkout sapk-fork/multica
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.STAGING_REPO }}
+          ref: ${{ needs.resolve.outputs.ref }}
+          path: multica-src
+
+      - name: Record commit SHA
+        id: sha
+        run: |
+          sha="$(git -C multica-src rev-parse HEAD)"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "Building commit: ${sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: needs.resolve.outputs.push == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v7
+        with:
+          context: multica-src
+          platforms: linux/amd64,linux/arm64
+          push: ${{ needs.resolve.outputs.push == 'true' }}
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:staging
+            ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
+          cache-from: type=gha,scope=multica-backend-staging
+          cache-to: type=gha,mode=max,scope=multica-backend-staging
+
+  build-agents:
+    needs: [resolve, build-backend]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [claude, cursor, opencode, codex, gemini, agy]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: needs.resolve.outputs.push == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.AGENT_IMAGE_PREFIX }}-${{ matrix.variant }}
+          labels: |
+            org.opencontainers.image.title=Multica Agent (${{ matrix.variant }}) [staging]
+            org.opencontainers.image.description=Multica daemon with ${{ matrix.variant }} CLI — staging build from sapk-fork/multica@${{ needs.resolve.outputs.ref }}
+            multica.staging.ref=${{ needs.resolve.outputs.ref }}
+            multica.staging.sha=${{ needs.build-backend.outputs.sha }}
+          tags: |
+            type=raw,value=staging
+            type=raw,value=staging-sha-${{ needs.build-backend.outputs.sha }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.agent
+          target: ${{ matrix.variant }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ needs.resolve.outputs.push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            MULTICA_IMAGE=${{ env.BACKEND_IMAGE }}
+            MULTICA_TAG=staging
+          cache-from: type=gha,scope=agent-${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=agent-${{ matrix.variant }}
