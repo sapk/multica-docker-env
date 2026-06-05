@@ -3,7 +3,7 @@
 #   make build-all
 #   make build-claude IMAGE=ghcr.io/org/multica-agent TAG=v1.0.0
 #
-# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode> -t <image> .
+# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode|codex|gemini|agy> -t <image> .
 
 ARG MULTICA_IMAGE=ghcr.io/multica-ai/multica-backend
 ARG MULTICA_TAG=latest
@@ -134,3 +134,33 @@ RUN curl -fsSL https://opencode.ai/install | bash
 ENV MULTICA_OPENCODE_PATH=/home/${USERNAME}/.opencode/bin/opencode
 
 RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/opencode
+
+# ---------------------------------------------------------------------------
+# codex — OpenAI Codex CLI (npm @openai/codex; binary lands in the nvm bin dir)
+# ---------------------------------------------------------------------------
+FROM base AS codex
+
+ARG USERNAME=agent
+
+RUN npm install -g @openai/codex
+ENV MULTICA_CODEX_PATH=/home/${USERNAME}/.local/node-active/codex
+
+# ---------------------------------------------------------------------------
+# gemini — Google Gemini CLI (npm @google/gemini-cli)
+# ---------------------------------------------------------------------------
+FROM base AS gemini
+
+ARG USERNAME=agent
+
+RUN npm install -g @google/gemini-cli
+ENV MULTICA_GEMINI_PATH=/home/${USERNAME}/.local/node-active/gemini
+
+# ---------------------------------------------------------------------------
+# agy — Antigravity CLI
+# ---------------------------------------------------------------------------
+FROM base AS agy
+
+ARG USERNAME=agent
+
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash
+ENV MULTICA_ANTIGRAVITY_PATH=/home/${USERNAME}/.local/bin/agy

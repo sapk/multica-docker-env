@@ -16,10 +16,10 @@ BUILD_ARGS := \
 
 DOCKERFILE := Dockerfile.agent
 
-.PHONY: build-all build-claude build-cursor build-opencode
-.PHONY: tag-claude tag-cursor tag-opencode
+.PHONY: build-all build-claude build-cursor build-opencode build-codex build-gemini build-agy
+.PHONY: tag-claude tag-cursor tag-opencode tag-codex tag-gemini tag-agy
 
-build-all: build-claude build-cursor build-opencode
+build-all: build-claude build-cursor build-opencode build-codex build-gemini build-agy
 
 build-claude:
 	docker build -f $(DOCKERFILE) --target claude $(BUILD_ARGS) -t $(IMAGE)-claude:$(TAG) .
@@ -30,7 +30,19 @@ build-cursor:
 build-opencode:
 	docker build -f $(DOCKERFILE) --target opencode $(BUILD_ARGS) -t $(IMAGE)-opencode:$(TAG) .
 
+build-codex:
+	docker build -f $(DOCKERFILE) --target codex $(BUILD_ARGS) -t $(IMAGE)-codex:$(TAG) .
+
+build-gemini:
+	docker build -f $(DOCKERFILE) --target gemini $(BUILD_ARGS) -t $(IMAGE)-gemini:$(TAG) .
+
+build-agy:
+	docker build -f $(DOCKERFILE) --target agy $(BUILD_ARGS) -t $(IMAGE)-agy:$(TAG) .
+
 # Alias targets (same as build-*)
 tag-claude: build-claude
 tag-cursor: build-cursor
 tag-opencode: build-opencode
+tag-codex: build-codex
+tag-gemini: build-gemini
+tag-agy: build-agy
