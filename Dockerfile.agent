@@ -95,20 +95,10 @@ RUN mkdir -p /home/${USERNAME}/.ssh \
  && printf '[user]\n\tname = %s\n\temail = %s\n[init]\n\tdefaultBranch = main\n' \
     "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" > /home/${USERNAME}/.gitconfig
 
-WORKDIR /workspaces
+COPY --chown=${USER_UID}:${USER_GID} docker/entrypoint-podman.sh /usr/local/bin/entrypoint-podman.sh
+RUN chmod +x /usr/local/bin/entrypoint-podman.sh
 
-ENV PATH="${PNPM_HOME}:/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:/app:${PATH}"
-ENV DOCKER_HOST="unix:///tmp/podman.sock"
-ENV TESTCONTAINERS_HOST_OVERRIDE="localhost"
-ENV TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/tmp/podman.sock"
-ENV TESTCONTAINERS_RYUK_DISABLED="true"
-ENV AARDVARK_BINARY="/usr/bin/aardvark-dns"
-
-COPY --chown=${USER_UID}:${USER_GID} docker/entrypoint-podman.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["/app/multica", "daemon", "start", "--foreground"]
+ENTRYPOINT ["/usr/local/bin/entrypoint-podman.sh"]
 
 # ---------------------------------------------------------------------------
 # claude — Claude Code CLI
