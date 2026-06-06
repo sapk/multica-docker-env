@@ -119,6 +119,8 @@ Workflow runs: https://github.com/sapk/multica-docker-env/actions
 
 The backend image is also published as `ghcr.io/sapk/multica-backend:staging`.
 
+**Note:** `sapk-fork/multica` must be public for the workflow's default `GITHUB_TOKEN` to check it out. If the fork is private, add a PAT as a repository secret and pass it via the checkout step's `token` input.
+
 To trigger from a workflow in `sapk-fork/multica`:
 
 ```yaml
