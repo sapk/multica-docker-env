@@ -24,4 +24,17 @@ if [ ! -S "${DOCKER_HOST#unix://}" ]; then
     cat /tmp/podman-service.log >&2 || true
 fi
 
+if [ "${ENABLE_RTK}" = "true" ] && [ -n "${MULTICA_AGENT_TYPE}" ] && command -v rtk >/dev/null 2>&1; then
+    echo "[entrypoint] Initializing RTK for agent: ${MULTICA_AGENT_TYPE}"
+    case "${MULTICA_AGENT_TYPE}" in
+        claude)       rtk init -g --agent claude ;;
+        cursor)       rtk init -g --agent cursor ;;
+        gemini)       rtk init -g --gemini ;;
+        codex)        rtk init -g --codex ;;
+        opencode)     rtk init -g --opencode ;;
+        antigravity)  rtk init --agent antigravity ;;
+        *)            echo "[entrypoint] Unknown agent type for RTK: ${MULTICA_AGENT_TYPE}" ;;
+    esac
+fi
+
 exec "$@"

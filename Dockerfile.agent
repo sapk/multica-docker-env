@@ -81,6 +81,8 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
+RUN curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
 
 RUN mkdir -p /home/${USERNAME}/.ssh \
@@ -112,6 +114,7 @@ ARG USERNAME=agent
 
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV MULTICA_CLAUDE_PATH=/home/${USERNAME}/.local/bin/claude
+ENV MULTICA_AGENT_TYPE=claude
 
 # ---------------------------------------------------------------------------
 # cursor — Cursor CLI
@@ -122,6 +125,7 @@ ARG USERNAME=agent
 
 RUN curl https://cursor.com/install -fsS | bash
 ENV MULTICA_CURSOR_PATH=/home/${USERNAME}/.local/bin/cursor-agent
+ENV MULTICA_AGENT_TYPE=cursor
 
 # ---------------------------------------------------------------------------
 # opencode — OpenCode CLI
@@ -132,6 +136,7 @@ ARG USERNAME=agent
 
 RUN curl -fsSL https://opencode.ai/install | bash
 ENV MULTICA_OPENCODE_PATH=/home/${USERNAME}/.opencode/bin/opencode
+ENV MULTICA_AGENT_TYPE=opencode
 
 RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/opencode
 
@@ -144,6 +149,7 @@ ARG USERNAME=agent
 
 RUN npm install -g @openai/codex
 ENV MULTICA_CODEX_PATH=/home/${USERNAME}/.local/node-active/codex
+ENV MULTICA_AGENT_TYPE=codex
 
 # ---------------------------------------------------------------------------
 # gemini — Google Gemini CLI (npm @google/gemini-cli)
@@ -154,6 +160,7 @@ ARG USERNAME=agent
 
 RUN npm install -g @google/gemini-cli
 ENV MULTICA_GEMINI_PATH=/home/${USERNAME}/.local/node-active/gemini
+ENV MULTICA_AGENT_TYPE=gemini
 
 # ---------------------------------------------------------------------------
 # agy — Antigravity CLI
@@ -164,3 +171,4 @@ ARG USERNAME=agent
 
 RUN curl -fsSL https://antigravity.google/cli/install.sh | bash
 ENV MULTICA_ANTIGRAVITY_PATH=/home/${USERNAME}/.local/bin/agy
+ENV MULTICA_AGENT_TYPE=antigravity
