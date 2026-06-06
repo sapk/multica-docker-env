@@ -34,7 +34,7 @@ if [ "${ENABLE_HEADROOM}" = "true" ]; then
         local wrapper_path="${WRAPPER_DIR}/${agent_name}-hr"
         cat > "${wrapper_path}" <<EOF
 #!/bin/bash
-exec headroom wrap ${agent_name} "\$@"
+exec headroom wrap --no-proxy ${agent_name} "\$@"
 EOF
         chmod +x "${wrapper_path}"
         echo "${wrapper_path}"
@@ -53,21 +53,6 @@ EOF
     if [ -n "${MULTICA_CODEX_PATH:-}" ]; then
         export MULTICA_CODEX_PATH="$(create_wrapper codex)"
         echo "[entrypoint] Wrapped codex: ${MULTICA_CODEX_PATH}"
-    fi
-
-    if [ -n "${MULTICA_OPENCODE_PATH:-}" ]; then
-        export MULTICA_OPENCODE_PATH="$(create_wrapper opencode)"
-        echo "[entrypoint] Wrapped opencode: ${MULTICA_OPENCODE_PATH}"
-    fi
-
-    if [ -n "${MULTICA_ANTIGRAVITY_PATH:-}" ]; then
-        export MULTICA_ANTIGRAVITY_PATH="$(create_wrapper agy)"
-        echo "[entrypoint] Wrapped agy: ${MULTICA_ANTIGRAVITY_PATH}"
-    fi
-
-    if [ -n "${MULTICA_GEMINI_PATH:-}" ]; then
-        export MULTICA_GEMINI_PATH="$(create_wrapper gemini)"
-        echo "[entrypoint] Wrapped gemini: ${MULTICA_GEMINI_PATH}"
     fi
 fi
 
