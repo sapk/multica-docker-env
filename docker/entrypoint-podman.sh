@@ -54,6 +54,21 @@ EOF
         export MULTICA_CODEX_PATH="$(create_wrapper codex)"
         echo "[entrypoint] Wrapped codex: ${MULTICA_CODEX_PATH}"
     fi
+
+    if [ -n "${MULTICA_OPENCODE_PATH:-}" ]; then
+        export MULTICA_OPENCODE_PATH="$(create_wrapper opencode)"
+        echo "[entrypoint] Wrapped opencode: ${MULTICA_OPENCODE_PATH}"
+    fi
+
+    if [ -n "${MULTICA_ANTIGRAVITY_PATH:-}" ]; then
+        export MULTICA_ANTIGRAVITY_PATH="$(create_wrapper agy)"
+        echo "[entrypoint] Wrapped agy: ${MULTICA_ANTIGRAVITY_PATH}"
+    fi
+
+    if [ -n "${MULTICA_GEMINI_PATH:-}" ]; then
+        export MULTICA_GEMINI_PATH="$(create_wrapper gemini)"
+        echo "[entrypoint] Wrapped gemini: ${MULTICA_GEMINI_PATH}"
+    fi
 fi
 
 exec "$@"
