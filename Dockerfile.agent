@@ -81,6 +81,8 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
+RUN npm install -g headroom-ai
+
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
 
 RUN mkdir -p /home/${USERNAME}/.ssh \
