@@ -26,15 +26,18 @@ fi
 
 if [ "${ENABLE_RTK}" = "true" ] && [ -n "${MULTICA_AGENT_TYPE}" ] && command -v rtk >/dev/null 2>&1; then
     echo "[entrypoint] Initializing RTK for agent: ${MULTICA_AGENT_TYPE}"
-    case "${MULTICA_AGENT_TYPE}" in
-        claude)       rtk init -g --agent claude ;;
-        cursor)       rtk init -g --agent cursor ;;
-        gemini)       rtk init -g --gemini ;;
-        codex)        rtk init -g --codex ;;
-        opencode)     rtk init -g --opencode ;;
-        antigravity)  rtk init --agent antigravity ;;
-        *)            echo "[entrypoint] Unknown agent type for RTK: ${MULTICA_AGENT_TYPE}" ;;
-    esac
+    (
+        case "${MULTICA_AGENT_TYPE}" in
+            claude)       rtk init -g --agent claude ;;
+            cursor)       rtk init -g --agent cursor ;;
+            gemini)       rtk init -g --agent gemini ;;
+            codex)        rtk init -g --agent codex ;;
+            opencode)     rtk init -g --agent opencode ;;
+            # antigravity does not support -g (no global workspace config)
+            antigravity)  rtk init --agent antigravity ;;
+            *)            echo "[entrypoint] Unknown agent type for RTK: ${MULTICA_AGENT_TYPE}" ;;
+        esac
+    ) || echo "[entrypoint] RTK init failed, continuing without it."
 fi
 
 exec "$@"
