@@ -10,7 +10,11 @@ TAG ?= latest
 MULTICA_IMAGE ?= ghcr.io/multica-ai/multica-backend
 MULTICA_TAG ?= latest
 
+export DOCKER_BUILDKIT := 1
+export BUILDKIT_PROGRESS := plain
+
 BUILD_ARGS := \
+	--pull \
 	--build-arg MULTICA_IMAGE=$(MULTICA_IMAGE) \
 	--build-arg MULTICA_TAG=$(MULTICA_TAG)
 

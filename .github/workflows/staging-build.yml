@@ -90,6 +90,7 @@ jobs:
         with:
           context: multica-src
           platforms: linux/amd64,linux/arm64
+          pull: true
           push: ${{ needs.resolve.outputs.push == 'true' }}
           tags: |
             ${{ env.BACKEND_IMAGE }}:staging
@@ -143,6 +144,7 @@ jobs:
           file: Dockerfile.agent
           target: ${{ matrix.variant }}
           platforms: linux/amd64,linux/arm64
+          pull: true
           push: ${{ needs.resolve.outputs.push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

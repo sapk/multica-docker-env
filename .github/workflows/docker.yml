@@ -105,6 +105,7 @@ jobs:
           file: Dockerfile.agent
           target: ${{ matrix.variant }}
           platforms: linux/amd64,linux/arm64
+          pull: true
           push: ${{ steps.push.outputs.enabled == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
