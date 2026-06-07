@@ -81,6 +81,13 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
+ARG RTK_VERSION=v0.42.3
+ARG RTK_INSTALL_SHA256=ab22d109f920db7d931ef6aa97d9460d93f41d296981db8446afed96ea9661e5
+RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VERSION}/install.sh" -o /tmp/rtk-install.sh \
+ && echo "${RTK_INSTALL_SHA256}  /tmp/rtk-install.sh" | sha256sum -c - \
+ && RTK_VERSION="${RTK_VERSION}" sh /tmp/rtk-install.sh \
+ && rm /tmp/rtk-install.sh
+
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
 
 RUN mkdir -p /home/${USERNAME}/.ssh \
