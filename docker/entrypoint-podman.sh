@@ -24,20 +24,31 @@ if [ ! -S "${DOCKER_HOST#unix://}" ]; then
     cat /tmp/podman-service.log >&2 || true
 fi
 
-if [ "${ENABLE_RTK}" = "true" ] && [ -n "${MULTICA_AGENT_TYPE}" ] && command -v rtk >/dev/null 2>&1; then
-    echo "[entrypoint] Initializing RTK for agent: ${MULTICA_AGENT_TYPE}"
-    (
-        case "${MULTICA_AGENT_TYPE}" in
-            claude)       rtk init -g --agent claude ;;
-            cursor)       rtk init -g --agent cursor ;;
-            gemini)       rtk init -g --agent gemini ;;
-            codex)        rtk init -g --agent codex ;;
-            opencode)     rtk init -g --agent opencode ;;
-            # antigravity does not support -g (no global workspace config)
-            antigravity)  rtk init --agent antigravity ;;
-            *)            echo "[entrypoint] Unknown agent type for RTK: ${MULTICA_AGENT_TYPE}" ;;
-        esac
-    ) || echo "[entrypoint] RTK init failed, continuing without it."
+if [ "${ENABLE_RTK}" = "true" ] && command -v rtk >/dev/null 2>&1; then
+    # Derive agent type from whichever MULTICA_*_PATH is set
+    if   [ -n "${MULTICA_CLAUDE_PATH}" ];      then agent_type=claude
+    elif [ -n "${MULTICA_CURSOR_PATH}" ];      then agent_type=cursor
+    elif [ -n "${MULTICA_GEMINI_PATH}" ];      then agent_type=gemini
+    elif [ -n "${MULTICA_CODEX_PATH}" ];       then agent_type=codex
+    elif [ -n "${MULTICA_OPENCODE_PATH}" ];    then agent_type=opencode
+    elif [ -n "${MULTICA_ANTIGRAVITY_PATH}" ]; then agent_type=antigravity
+    else                                            agent_type=
+    fi
+
+    if [ -n "${agent_type}" ]; then
+        echo "[entrypoint] Initializing RTK for agent: ${agent_type}"
+        (
+            case "${agent_type}" in
+                claude)       rtk init -g --agent claude ;;
+                cursor)       rtk init -g --agent cursor ;;
+                gemini)       rtk init -g --agent gemini ;;
+                codex)        rtk init -g --agent codex ;;
+                opencode)     rtk init -g --agent opencode ;;
+                # antigravity does not support -g (no global workspace config)
+                antigravity)  rtk init --agent antigravity ;;
+            esac
+        ) || echo "[entrypoint] RTK init failed, continuing without it."
+    fi
 fi
 
 exec "$@"
