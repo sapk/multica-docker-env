@@ -70,7 +70,39 @@ jobs:
         run: |
           sha="$(git -C multica-src rev-parse HEAD)"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-          echo "Building commit: ${sha}"
+          echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          
+          # Fetch tags from upstream (sapk-fork doesn't have them)
+          git -C multica-src fetch --tags https://github.com/multica-ai/multica.git 2>/dev/null || true
+          
+          # Compute Go-style pseudo-version
+          timestamp=$(git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
+          short_sha="${sha:0:12}"
+          
+          # Check if we have any tags
+          if git -C multica-src describe --tags --exact-match HEAD >/dev/null 2>&1; then
+            # Exact tag match - use as-is
+            version=$(git -C multica-src describe --tags --exact-match HEAD)
+          elif git -C multica-src describe --tags --abbrev=0 HEAD >/dev/null 2>&1; then
+            # Has prior tag - create pseudo-version with bumped patch
+            base_tag=$(git -C multica-src describe --tags --abbrev=0 HEAD)
+            # Parse vX.Y.Z and bump Z
+            if [[ "$base_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              major="${BASH_REMATCH[1]}"
+              minor="${BASH_REMATCH[2]}"
+              patch=$(( ${BASH_REMATCH[3]} + 1 ))
+              version="v${major}.${minor}.${patch}-0.${timestamp}-${short_sha}"
+            else
+              # Pre-release or non-standard tag
+              version="${base_tag}.0.${timestamp}-${short_sha}"
+            fi
+          else
+            # No tags at all
+            version="v0.0.0-${timestamp}-${short_sha}"
+          fi
+          
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Building commit: ${sha} (version: ${version})"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -96,6 +128,10 @@ jobs:
           tags: |
             ${{ env.BACKEND_IMAGE }}:staging
             ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
+          build-args: |
+            VERSION=${{ steps.sha.outputs.version }}
+            COMMIT=${{ steps.sha.outputs.sha }}
+            DATE=${{ steps.sha.outputs.date }}
           cache-from: type=gha,scope=multica-backend-staging
           cache-to: type=gha,mode=max,scope=multica-backend-staging
 
@@ -154,6 +190,8 @@ jobs:
           push: ${{ needs.resolve.outputs.push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_APP_VERSION=${{ steps.sha.outputs.sha }}
           cache-from: type=gha,scope=multica-web-staging
           cache-to: type=gha,mode=max,scope=multica-web-staging
 
