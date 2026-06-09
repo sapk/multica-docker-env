@@ -110,7 +110,7 @@ Workflow runs: https://github.com/sapk/multica-docker-env/actions
 
 ### Staging builds
 
-`.github/workflows/staging-build.yml` builds the backend and all agent images from [`sapk-fork/multica`](https://github.com/sapk-fork/multica) `features/staging`:
+`.github/workflows/staging-build.yml` builds the backend, web frontend, and all agent images from [`sapk-fork/multica`](https://github.com/sapk-fork/multica) `features/staging`:
 
 | Trigger | Tags (per variant) |
 |---------|-------------------|
@@ -118,6 +118,7 @@ Workflow runs: https://github.com/sapk/multica-docker-env/actions
 | `workflow_dispatch` (manual) | `staging`, `staging-sha-<commit>` |
 
 The backend image is also published as `ghcr.io/sapk/multica-backend:staging`.
+The web frontend is also published as `ghcr.io/sapk/multica-web:staging`.
 
 To trigger from a workflow in `sapk-fork/multica`:
 
