@@ -64,6 +64,7 @@ jobs:
           repository: ${{ env.STAGING_REPO }}
           ref: ${{ needs.resolve.outputs.ref }}
           path: multica-src
+          fetch-depth: 0
 
       - name: Record commit SHA
         id: sha
@@ -75,8 +76,8 @@ jobs:
           # Fetch tags from upstream (sapk-fork doesn't have them)
           git -C multica-src fetch --tags https://github.com/multica-ai/multica.git 2>/dev/null || true
           
-          # Compute Go-style pseudo-version
-          timestamp=$(git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
+          # Compute Go-style pseudo-version (timestamp must be UTC)
+          timestamp=$(TZ=UTC git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
           short_sha="${sha:0:12}"
           
           # Check if we have any tags
