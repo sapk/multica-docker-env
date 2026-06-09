@@ -72,6 +72,9 @@ jobs:
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
           
+          # Fetch tags from upstream (sapk-fork doesn't have them)
+          git -C multica-src fetch --tags https://github.com/multica-ai/multica.git 2>/dev/null || true
+          
           # Compute version: use git describe if tags exist, otherwise pseudo-version
           version=$(git -C multica-src describe --tags --always --dirty 2>/dev/null || echo "")
           if [[ "$version" =~ ^[0-9a-f]{7,40}$ ]]; then
