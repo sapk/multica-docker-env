@@ -70,9 +70,17 @@ jobs:
         run: |
           sha="$(git -C multica-src rev-parse HEAD)"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${sha:0:7}" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
-          echo "Building commit: ${sha}"
+          
+          # Compute version: use git describe if tags exist, otherwise pseudo-version
+          version=$(git -C multica-src describe --tags --always --dirty 2>/dev/null || echo "")
+          if [[ "$version" =~ ^[0-9a-f]{7,40}$ ]]; then
+            # No tags, create Go-style pseudo-version
+            timestamp=$(git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
+            version="v0.0.0-${timestamp}-${version}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Building commit: ${sha} (version: ${version})"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -99,7 +107,7 @@ jobs:
             ${{ env.BACKEND_IMAGE }}:staging
             ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
           build-args: |
-            VERSION=staging-${{ steps.sha.outputs.short_sha }}
+            VERSION=${{ steps.sha.outputs.version }}
             COMMIT=${{ steps.sha.outputs.sha }}
             DATE=${{ steps.sha.outputs.date }}
           cache-from: type=gha,scope=multica-backend-staging
