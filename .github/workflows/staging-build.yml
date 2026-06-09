@@ -96,6 +96,10 @@ jobs:
           tags: |
             ${{ env.BACKEND_IMAGE }}:staging
             ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
+          build-args: |
+            VERSION=staging
+            COMMIT=${{ steps.sha.outputs.sha }}
+            DATE=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha,scope=multica-backend-staging
           cache-to: type=gha,mode=max,scope=multica-backend-staging
 
