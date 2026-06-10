@@ -81,7 +81,7 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
-ARG GO_VERSION=1.24.4
+ARG GO_VERSION=1.26.4
 RUN GO_ARCH="$(uname -m)" \
  && case "${GO_ARCH}" in \
       x86_64)  GO_ARCH="amd64" ;; \
