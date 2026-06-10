@@ -81,6 +81,19 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
+ARG GO_VERSION=1.26.4
+RUN GO_ARCH="$(uname -m)" \
+ && case "${GO_ARCH}" in \
+      x86_64)  GO_ARCH="amd64" ;; \
+      aarch64) GO_ARCH="arm64" ;; \
+      *) echo "Unsupported architecture: ${GO_ARCH}" && exit 1 ;; \
+    esac \
+ && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -o /tmp/go.tar.gz \
+ && mkdir -p "${HOME}/.local/go" \
+ && tar -C "${HOME}/.local/go" --strip-components=1 -xzf /tmp/go.tar.gz \
+ && rm /tmp/go.tar.gz \
+ && "${HOME}/.local/go/bin/go" version
+
 ARG RTK_VERSION=v0.42.3
 ARG RTK_INSTALL_SHA256=ab22d109f920db7d931ef6aa97d9460d93f41d296981db8446afed96ea9661e5
 RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VERSION}/install.sh" -o /tmp/rtk-install.sh \
@@ -97,7 +110,7 @@ RUN mkdir -p /home/${USERNAME}/.ssh \
 
 WORKDIR /workspaces
 
-ENV PATH="${PNPM_HOME}:/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:/app:${PATH}"
+ENV PATH="/home/${USERNAME}/.local/go/bin:${PNPM_HOME}:/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:/app:${PATH}"
 ENV DOCKER_HOST="unix:///tmp/podman.sock"
 ENV TESTCONTAINERS_HOST_OVERRIDE="localhost"
 ENV TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/tmp/podman.sock"
