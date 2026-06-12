@@ -7,6 +7,7 @@
 
 ARG MULTICA_IMAGE=ghcr.io/multica-ai/multica-backend
 ARG MULTICA_TAG=latest
+ARG AGENT_BASE_IMAGE=base
 FROM ${MULTICA_IMAGE}:${MULTICA_TAG} AS multica
 
 # ---------------------------------------------------------------------------
@@ -123,8 +124,6 @@ RUN chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/multica", "daemon", "start", "--foreground"]
-
-ARG AGENT_BASE_IMAGE=base
 
 # ---------------------------------------------------------------------------
 # claude — Claude Code CLI
