@@ -228,9 +228,8 @@ jobs:
           target: base
           platforms: linux/amd64,linux/arm64
           pull: true
-          push: ${{ needs.resolve.outputs.push == 'true' }}
+          push: true
           tags: |
-            ${{ env.AGENT_IMAGE_PREFIX }}-base:staging
             ${{ env.AGENT_IMAGE_PREFIX }}-base:staging-sha-${{ needs.build-backend.outputs.sha }}
           build-args: |
             MULTICA_IMAGE=${{ env.BACKEND_IMAGE }}

@@ -94,9 +94,8 @@ jobs:
           target: base
           platforms: linux/amd64,linux/arm64
           pull: true
-          push: ${{ needs.resolve.outputs.push == 'true' }}
+          push: true
           tags: |
-            ${{ env.AGENT_IMAGE_PREFIX }}-base:latest
             ${{ env.AGENT_IMAGE_PREFIX }}-base:${{ github.sha }}
           build-args: |
             MULTICA_IMAGE=${{ env.MULTICA_BACKEND_IMAGE }}
