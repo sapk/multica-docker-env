@@ -133,7 +133,9 @@ jobs:
             VERSION=${{ steps.sha.outputs.version }}
             COMMIT=${{ steps.sha.outputs.sha }}
             DATE=${{ steps.sha.outputs.date }}
-          cache-from: type=gha,scope=multica-backend-staging
+          cache-from: |
+            type=gha,scope=multica-backend-staging
+            type=registry,ref=${{ env.BACKEND_IMAGE }}:staging
           cache-to: type=gha,mode=max,scope=multica-backend-staging
 
   build-web:
@@ -193,11 +195,54 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_APP_VERSION=${{ steps.sha.outputs.sha }}
-          cache-from: type=gha,scope=multica-web-staging
+          cache-from: |
+            type=gha,scope=multica-web-staging
+            type=registry,ref=${{ env.WEB_IMAGE }}:staging
           cache-to: type=gha,mode=max,scope=multica-web-staging
 
-  build-agents:
+  build-agent-base:
     needs: [resolve, build-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: needs.resolve.outputs.push == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push agent base
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.agent
+          target: base
+          platforms: linux/amd64,linux/arm64
+          pull: true
+          push: ${{ needs.resolve.outputs.push == 'true' }}
+          tags: |
+            ${{ env.AGENT_IMAGE_PREFIX }}-base:staging
+            ${{ env.AGENT_IMAGE_PREFIX }}-base:staging-sha-${{ needs.build-backend.outputs.sha }}
+          build-args: |
+            MULTICA_IMAGE=${{ env.BACKEND_IMAGE }}
+            MULTICA_TAG=staging-sha-${{ needs.build-backend.outputs.sha }}
+          cache-from: |
+            type=gha,scope=agent-base-staging
+            type=registry,ref=${{ env.AGENT_IMAGE_PREFIX }}-base:staging
+          cache-to: type=gha,mode=max,scope=agent-base-staging
+
+  build-agents:
+    needs: [resolve, build-backend, build-agent-base]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -247,7 +292,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            MULTICA_IMAGE=${{ env.BACKEND_IMAGE }}
-            MULTICA_TAG=staging-sha-${{ needs.build-backend.outputs.sha }}
-          cache-from: type=gha,scope=agent-${{ matrix.variant }}
+            AGENT_BASE_IMAGE=${{ env.AGENT_IMAGE_PREFIX }}-base:staging-sha-${{ needs.build-backend.outputs.sha }}
+          cache-from: |
+            type=gha,scope=agent-${{ matrix.variant }}
+            type=registry,ref=${{ env.AGENT_IMAGE_PREFIX }}-${{ matrix.variant }}:staging
           cache-to: type=gha,mode=max,scope=agent-${{ matrix.variant }}

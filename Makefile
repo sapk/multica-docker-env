@@ -20,10 +20,13 @@ BUILD_ARGS := \
 
 DOCKERFILE := Dockerfile.agent
 
-.PHONY: build-all build-claude build-cursor build-opencode build-codex build-gemini build-agy
+.PHONY: build-all build-base build-claude build-cursor build-opencode build-codex build-gemini build-agy
 .PHONY: tag-claude tag-cursor tag-opencode tag-codex tag-gemini tag-agy
 
-build-all: build-claude build-cursor build-opencode build-codex build-gemini build-agy
+build-all: build-base build-claude build-cursor build-opencode build-codex build-gemini build-agy
+
+build-base:
+	docker build -f $(DOCKERFILE) --target base $(BUILD_ARGS) -t $(IMAGE)-base:$(TAG) .
 
 build-claude:
 	docker build -f $(DOCKERFILE) --target claude $(BUILD_ARGS) -t $(IMAGE)-claude:$(TAG) .

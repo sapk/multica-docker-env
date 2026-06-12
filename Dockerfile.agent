@@ -124,10 +124,12 @@ RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/multica", "daemon", "start", "--foreground"]
 
+ARG AGENT_BASE_IMAGE=base
+
 # ---------------------------------------------------------------------------
 # claude — Claude Code CLI
 # ---------------------------------------------------------------------------
-FROM base AS claude
+FROM ${AGENT_BASE_IMAGE} AS claude
 
 ARG USERNAME=agent
 
@@ -137,7 +139,7 @@ ENV MULTICA_CLAUDE_PATH=/home/${USERNAME}/.local/bin/claude
 # ---------------------------------------------------------------------------
 # cursor — Cursor CLI
 # ---------------------------------------------------------------------------
-FROM base AS cursor
+FROM ${AGENT_BASE_IMAGE} AS cursor
 
 ARG USERNAME=agent
 
@@ -147,7 +149,7 @@ ENV MULTICA_CURSOR_PATH=/home/${USERNAME}/.local/bin/cursor-agent
 # ---------------------------------------------------------------------------
 # opencode — OpenCode CLI
 # ---------------------------------------------------------------------------
-FROM base AS opencode
+FROM ${AGENT_BASE_IMAGE} AS opencode
 
 ARG USERNAME=agent
 
@@ -159,7 +161,7 @@ RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/o
 # ---------------------------------------------------------------------------
 # codex — OpenAI Codex CLI (npm @openai/codex; binary lands in the nvm bin dir)
 # ---------------------------------------------------------------------------
-FROM base AS codex
+FROM ${AGENT_BASE_IMAGE} AS codex
 
 ARG USERNAME=agent
 
@@ -169,7 +171,7 @@ ENV MULTICA_CODEX_PATH=/home/${USERNAME}/.local/node-active/codex
 # ---------------------------------------------------------------------------
 # gemini — Google Gemini CLI (npm @google/gemini-cli)
 # ---------------------------------------------------------------------------
-FROM base AS gemini
+FROM ${AGENT_BASE_IMAGE} AS gemini
 
 ARG USERNAME=agent
 
@@ -179,7 +181,7 @@ ENV MULTICA_GEMINI_PATH=/home/${USERNAME}/.local/node-active/gemini
 # ---------------------------------------------------------------------------
 # agy — Antigravity CLI
 # ---------------------------------------------------------------------------
-FROM base AS agy
+FROM ${AGENT_BASE_IMAGE} AS agy
 
 ARG USERNAME=agent
 
