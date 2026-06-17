@@ -42,6 +42,8 @@ jobs:
     outputs:
       multica_tag: ${{ steps.multica.outputs.tag }}
       push: ${{ steps.push.outputs.enabled }}
+      multica_backend_image: ${{ steps.images.outputs.multica_backend_image }}
+      agent_image_prefix: ${{ steps.images.outputs.agent_image_prefix }}
     steps:
       - name: Resolve Multica backend tag
         id: multica
@@ -69,12 +71,21 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Resolve image refs
+        id: images
+        run: |
+          # Pass workflow env values downstream. The `env` context is not
+          # available in the `with:` inputs of a workflow_call, so the
+          # build-base job must read these via `needs.resolve.outputs.*`.
+          echo "multica_backend_image=${MULTICA_BACKEND_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "agent_image_prefix=${AGENT_IMAGE_PREFIX}" >> "$GITHUB_OUTPUT"
+
   build-base:
     needs: resolve
     uses: ./.github/workflows/_build-agent-base.yml
     with:
-      base_image_tag: ${{ env.AGENT_IMAGE_PREFIX }}-base:${{ github.sha }}
-      multica_image: ${{ env.MULTICA_BACKEND_IMAGE }}
+      base_image_tag: ${{ needs.resolve.outputs.agent_image_prefix }}-base:${{ github.sha }}
+      multica_image: ${{ needs.resolve.outputs.multica_backend_image }}
       multica_tag: ${{ needs.resolve.outputs.multica_tag }}
       cache_scope: agent-base
       setup_qemu: true
