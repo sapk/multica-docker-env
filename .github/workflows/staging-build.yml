@@ -37,6 +37,9 @@ jobs:
     outputs:
       ref: ${{ steps.resolve.outputs.ref }}
       push: ${{ steps.resolve.outputs.push }}
+      backend_image: ${{ steps.resolve.outputs.backend_image }}
+      web_image: ${{ steps.resolve.outputs.web_image }}
+      agent_image_prefix: ${{ steps.resolve.outputs.agent_image_prefix }}
     steps:
       - name: Resolve inputs
         id: resolve
@@ -51,6 +54,12 @@ jobs:
             echo "ref=${ref:-features/staging}" >> "$GITHUB_OUTPUT"
             echo "push=${push:-true}" >> "$GITHUB_OUTPUT"
           fi
+          # Pass workflow env values downstream. The `env` context is not
+          # available in the `with:` inputs of a workflow_call, so the
+          # build-agent-base job must read these via `needs.resolve.outputs.*`.
+          echo "backend_image=${BACKEND_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "web_image=${WEB_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "agent_image_prefix=${AGENT_IMAGE_PREFIX}" >> "$GITHUB_OUTPUT"
 
   build-backend:
     needs: resolve
@@ -204,8 +213,8 @@ jobs:
     needs: [resolve, build-backend]
     uses: ./.github/workflows/_build-agent-base.yml
     with:
-      base_image_tag: ${{ env.AGENT_IMAGE_PREFIX }}-base:staging-sha-${{ needs.build-backend.outputs.sha }}
-      multica_image: ${{ env.BACKEND_IMAGE }}
+      base_image_tag: ${{ needs.resolve.outputs.agent_image_prefix }}-base:staging-sha-${{ needs.build-backend.outputs.sha }}
+      multica_image: ${{ needs.resolve.outputs.backend_image }}
       multica_tag: staging-sha-${{ needs.build-backend.outputs.sha }}
       cache_scope: agent-base-staging
       setup_qemu: true
