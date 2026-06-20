@@ -16,7 +16,7 @@ on:
         default: true
         type: boolean
       verbose_progress:
-        description: "Show per-step BuildKit timings on build-web jobs (sets BUILDKIT_PROGRESS=plain)"
+        description: "Show per-step BuildKit timings on build-web and build-backend jobs (sets BUILDKIT_PROGRESS=plain)"
         required: false
         default: false
         type: boolean
@@ -66,11 +66,13 @@ jobs:
           echo "web_image=${WEB_IMAGE}" >> "$GITHUB_OUTPUT"
           echo "agent_image_prefix=${AGENT_IMAGE_PREFIX}" >> "$GITHUB_OUTPUT"
 
-  build-backend:
+  build-backend-amd64:
     needs: resolve
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
+    env:
+      BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
     steps:
       - name: Checkout sapk-fork/multica
         uses: actions/checkout@v6
@@ -86,14 +88,14 @@ jobs:
           sha="$(git -C multica-src rev-parse HEAD)"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
-          
+
           # Fetch tags from upstream (sapk-fork doesn't have them)
           git -C multica-src fetch --tags https://github.com/multica-ai/multica.git 2>/dev/null || true
-          
+
           # Compute Go-style pseudo-version (timestamp must be UTC)
           timestamp=$(TZ=UTC git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
           short_sha="${sha:0:12}"
-          
+
           # Check if we have any tags
           if git -C multica-src describe --tags --exact-match HEAD >/dev/null 2>&1; then
             # Exact tag match - use as-is
@@ -115,12 +117,9 @@ jobs:
             # No tags at all
             version="v0.0.0-${timestamp}-${short_sha}"
           fi
-          
+
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Building commit: ${sha} (version: ${version})"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -133,24 +132,152 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend
+      - name: Build and push backend (linux/amd64)
         uses: docker/build-push-action@v7
         with:
           context: multica-src
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           pull: true
           push: ${{ needs.resolve.outputs.push == 'true' }}
           tags: |
             ${{ env.BACKEND_IMAGE }}:staging
             ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
+            ${{ env.BACKEND_IMAGE }}:staging-amd64
           build-args: |
             VERSION=${{ steps.sha.outputs.version }}
             COMMIT=${{ steps.sha.outputs.sha }}
             DATE=${{ steps.sha.outputs.date }}
           cache-from: |
-            type=gha,scope=multica-backend-staging
-            type=registry,ref=${{ env.BACKEND_IMAGE }}:staging
-          cache-to: type=gha,mode=max,scope=multica-backend-staging
+            type=gha,scope=multica-backend-staging-amd64
+            type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-amd64
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-amd64,mode=max
+
+  build-backend-arm64:
+    needs: resolve
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    env:
+      BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
+    steps:
+      - name: Checkout sapk-fork/multica
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.STAGING_REPO }}
+          ref: ${{ needs.resolve.outputs.ref }}
+          path: multica-src
+          fetch-depth: 0
+
+      - name: Record commit SHA
+        id: sha
+        run: |
+          sha="$(git -C multica-src rev-parse HEAD)"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+          # Fetch tags from upstream (sapk-fork doesn't have them)
+          git -C multica-src fetch --tags https://github.com/multica-ai/multica.git 2>/dev/null || true
+
+          # Compute Go-style pseudo-version (timestamp must be UTC)
+          timestamp=$(TZ=UTC git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
+          short_sha="${sha:0:12}"
+
+          # Check if we have any tags
+          if git -C multica-src describe --tags --exact-match HEAD >/dev/null 2>&1; then
+            # Exact tag match - use as-is
+            version=$(git -C multica-src describe --tags --exact-match HEAD)
+          elif git -C multica-src describe --tags --abbrev=0 HEAD >/dev/null 2>&1; then
+            # Has prior tag - create pseudo-version with bumped patch
+            base_tag=$(git -C multica-src describe --tags --abbrev=0 HEAD)
+            # Parse vX.Y.Z and bump Z
+            if [[ "$base_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              major="${BASH_REMATCH[1]}"
+              minor="${BASH_REMATCH[2]}"
+              patch=$(( ${BASH_REMATCH[3]} + 1 ))
+              version="v${major}.${minor}.${patch}-0.${timestamp}-${short_sha}"
+            else
+              # Pre-release or non-standard tag
+              version="${base_tag}.0.${timestamp}-${short_sha}"
+            fi
+          else
+            # No tags at all
+            version="v0.0.0-${timestamp}-${short_sha}"
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Building commit: ${sha} (version: ${version})"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: needs.resolve.outputs.push == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend (linux/arm64)
+        uses: docker/build-push-action@v7
+        with:
+          context: multica-src
+          platforms: linux/arm64
+          pull: true
+          push: ${{ needs.resolve.outputs.push == 'true' }}
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:staging
+            ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
+            ${{ env.BACKEND_IMAGE }}:staging-arm64
+          build-args: |
+            VERSION=${{ steps.sha.outputs.version }}
+            COMMIT=${{ steps.sha.outputs.sha }}
+            DATE=${{ steps.sha.outputs.date }}
+          cache-from: |
+            type=gha,scope=multica-backend-staging-arm64
+            type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-arm64
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-arm64,mode=max
+
+  build-backend-merge:
+    needs: [resolve, build-backend-amd64, build-backend-arm64]
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.setup-sha.outputs.sha }}
+    steps:
+      - name: Expose backend SHA
+        id: setup-sha
+        run: |
+          sha="${{ needs.build-backend-amd64.outputs.sha }}"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "Backend SHA: ${sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: needs.resolve.outputs.push == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge multi-arch backend manifest
+        if: needs.resolve.outputs.push == 'true'
+        run: |
+          backend_image="${{ needs.resolve.outputs.backend_image }}"
+          sha="${{ steps.setup-sha.outputs.sha }}"
+          docker buildx imagetools create \
+            --tag "${backend_image}:staging" \
+            --tag "${backend_image}:staging-sha-${sha}" \
+            "${backend_image}:staging-amd64" \
+            "${backend_image}:staging-arm64"
+          echo "::notice::Merged multi-arch manifest at ${backend_image}:staging and ${backend_image}:staging-sha-${sha}"
+          docker buildx imagetools inspect "${backend_image}:staging"
+
+      - name: Skip notice
+        if: needs.resolve.outputs.push != 'true'
+        run: echo "skipping merge (push=false)"
 
   build-web-amd64:
     needs: resolve
@@ -315,17 +442,17 @@ jobs:
         run: echo "skipping merge (push=false)"
 
   build-agent-base:
-    needs: [resolve, build-backend]
+    needs: [resolve, build-backend-merge]
     uses: ./.github/workflows/_build-agent-base.yml
     with:
-      base_image_tag: ${{ needs.resolve.outputs.agent_image_prefix }}-base:staging-sha-${{ needs.build-backend.outputs.sha }}
+      base_image_tag: ${{ needs.resolve.outputs.agent_image_prefix }}-base:staging-sha-${{ needs.build-backend-merge.outputs.sha }}
       multica_image: ${{ needs.resolve.outputs.backend_image }}
-      multica_tag: staging-sha-${{ needs.build-backend.outputs.sha }}
+      multica_tag: staging-sha-${{ needs.build-backend-merge.outputs.sha }}
       cache_scope: agent-base-staging
       setup_qemu: true
 
   build-agents:
-    needs: [resolve, build-backend, build-agent-base]
+    needs: [resolve, build-backend-merge, build-agent-base]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -357,10 +484,10 @@ jobs:
             org.opencontainers.image.title=Multica Agent (${{ matrix.variant }}) [staging]
             org.opencontainers.image.description=Multica daemon with ${{ matrix.variant }} CLI — staging build from sapk-fork/multica@${{ needs.resolve.outputs.ref }}
             multica.staging.ref=${{ needs.resolve.outputs.ref }}
-            multica.staging.sha=${{ needs.build-backend.outputs.sha }}
+            multica.staging.sha=${{ needs.build-backend-merge.outputs.sha }}
           tags: |
             type=raw,value=staging
-            type=raw,value=staging-sha-${{ needs.build-backend.outputs.sha }}
+            type=raw,value=staging-sha-${{ needs.build-backend-merge.outputs.sha }}
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -374,7 +501,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            AGENT_BASE_IMAGE=${{ env.AGENT_IMAGE_PREFIX }}-base:staging-sha-${{ needs.build-backend.outputs.sha }}
+            AGENT_BASE_IMAGE=${{ env.AGENT_IMAGE_PREFIX }}-base:staging-sha-${{ needs.build-backend-merge.outputs.sha }}
           cache-from: |
             type=gha,scope=agent-${{ matrix.variant }}
             ${{ needs.resolve.outputs.push == 'true' && format('type=registry,ref={0}-{1}:staging', env.AGENT_IMAGE_PREFIX, matrix.variant) || '' }}
