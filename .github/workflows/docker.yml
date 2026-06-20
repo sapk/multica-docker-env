@@ -88,7 +88,6 @@ jobs:
       multica_image: ${{ needs.resolve.outputs.multica_backend_image }}
       multica_tag: ${{ needs.resolve.outputs.multica_tag }}
       cache_scope: agent-base
-      setup_qemu: true
 
   build:
     needs: [resolve, build-base]

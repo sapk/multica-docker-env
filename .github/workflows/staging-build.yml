@@ -450,7 +450,6 @@ jobs:
       multica_tag: staging-sha-${{ needs.build-backend-merge.outputs.sha }}
       cache_scope: agent-base-staging
       push: ${{ needs.resolve.outputs.push == 'true' }}
-      setup_qemu: true
 
   build-agents:
     needs: [resolve, build-backend-merge, build-agent-base]

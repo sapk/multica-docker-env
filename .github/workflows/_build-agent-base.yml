@@ -29,11 +29,6 @@ on:
         required: false
         type: boolean
         default: true
-      setup_qemu:
-        description: "DEPRECATED no-op: the per-arch jobs run native on ubuntu-latest / ubuntu-24.04-arm, so QEMU is no longer needed. Kept so existing callers (e.g. staging-build.yml) that still pass setup_qemu: true don't break."
-        required: false
-        type: boolean
-        default: false
   workflow_dispatch:
     inputs:
       base_image_tag:
