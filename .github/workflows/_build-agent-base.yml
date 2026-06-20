@@ -20,7 +20,7 @@ on:
         required: true
         type: string
       cache_from_registry_ref:
-        description: "Base registry ref for cache-from (e.g. ghcr.io/sapk/multica-agent-base:staging). Empty to skip. The per-arch jobs append -amd64/-arm64."
+        description: "Base registry ref for the cache (e.g. ghcr.io/sapk/multica-agent-base:staging). The per-arch jobs append -amd64-cache/-arm64-cache to read the cache from a separate registry ref. Empty to skip."
         required: false
         type: string
         default: ""
@@ -52,7 +52,7 @@ on:
         default: "agent-base-dispatch"
         type: string
       cache_from_registry_ref:
-        description: "Base registry ref for cache-from. Empty to skip."
+        description: "Base registry ref for the cache. The per-arch jobs append -amd64-cache/-arm64-cache. Empty to skip."
         required: false
         default: ""
         type: string
@@ -100,16 +100,14 @@ jobs:
           platforms: linux/amd64
           pull: true
           push: ${{ inputs.push }}
-          tags: |
-            ${{ inputs.base_image_tag }}
-            ${{ inputs.base_image_tag }}-amd64
+          tags: ${{ inputs.base_image_tag }}-amd64
           build-args: |
             MULTICA_IMAGE=${{ inputs.multica_image }}
             MULTICA_TAG=${{ inputs.multica_tag }}
           cache-from: |
             type=gha,scope=${{ inputs.cache_scope }}-amd64
-            ${{ inputs.cache_from_registry_ref && format('type=registry,ref={0}-amd64', inputs.cache_from_registry_ref) || '' }}
-          cache-to: type=registry,ref=${{ inputs.base_image_tag }}-amd64,mode=max
+            ${{ inputs.cache_from_registry_ref && format('type=registry,ref={0}-amd64-cache', inputs.cache_from_registry_ref) || '' }}
+          cache-to: type=registry,ref=${{ inputs.base_image_tag }}-amd64-cache,mode=max
 
   build-arm64:
     runs-on: ubuntu-24.04-arm
@@ -139,16 +137,14 @@ jobs:
           platforms: linux/arm64
           pull: true
           push: ${{ inputs.push }}
-          tags: |
-            ${{ inputs.base_image_tag }}
-            ${{ inputs.base_image_tag }}-arm64
+          tags: ${{ inputs.base_image_tag }}-arm64
           build-args: |
             MULTICA_IMAGE=${{ inputs.multica_image }}
             MULTICA_TAG=${{ inputs.multica_tag }}
           cache-from: |
             type=gha,scope=${{ inputs.cache_scope }}-arm64
-            ${{ inputs.cache_from_registry_ref && format('type=registry,ref={0}-arm64', inputs.cache_from_registry_ref) || '' }}
-          cache-to: type=registry,ref=${{ inputs.base_image_tag }}-arm64,mode=max
+            ${{ inputs.cache_from_registry_ref && format('type=registry,ref={0}-arm64-cache', inputs.cache_from_registry_ref) || '' }}
+          cache-to: type=registry,ref=${{ inputs.base_image_tag }}-arm64-cache,mode=max
 
   merge:
     needs: [build-amd64, build-arm64]
