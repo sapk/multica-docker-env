@@ -149,8 +149,8 @@ jobs:
             DATE=${{ steps.sha.outputs.date }}
           cache-from: |
             type=gha,scope=multica-backend-staging-amd64
-            type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-amd64
-          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-amd64,mode=max
+            type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-amd64
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-amd64,mode=max
 
   build-backend-arm64:
     needs: resolve
@@ -235,8 +235,8 @@ jobs:
             DATE=${{ steps.sha.outputs.date }}
           cache-from: |
             type=gha,scope=multica-backend-staging-arm64
-            type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-arm64
-          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:staging-arm64,mode=max
+            type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-arm64
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-arm64,mode=max
 
   build-backend-merge:
     needs: [resolve, build-backend-amd64, build-backend-arm64]
@@ -341,8 +341,8 @@ jobs:
             NEXT_PUBLIC_APP_VERSION=${{ steps.sha.outputs.sha }}
           cache-from: |
             type=gha,scope=multica-web-staging-amd64
-            type=registry,ref=${{ env.WEB_IMAGE }}:staging-amd64
-          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:staging-amd64,mode=max
+            type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-amd64
+          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-amd64,mode=max
 
   build-web-arm64:
     needs: resolve
@@ -406,8 +406,8 @@ jobs:
             NEXT_PUBLIC_APP_VERSION=${{ steps.sha.outputs.sha }}
           cache-from: |
             type=gha,scope=multica-web-staging-arm64
-            type=registry,ref=${{ env.WEB_IMAGE }}:staging-arm64
-          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:staging-arm64,mode=max
+            type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-arm64
+          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-arm64,mode=max
 
   build-web-merge:
     needs: [resolve, build-web-amd64, build-web-arm64]
