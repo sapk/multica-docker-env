@@ -215,7 +215,7 @@ jobs:
           cache-from: |
             type=gha,scope=multica-web-staging-amd64
             type=registry,ref=${{ env.WEB_IMAGE }}:staging-amd64
-          cache-to: type=gha,mode=max,scope=multica-web-staging-amd64
+          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:staging-amd64,mode=max
 
   build-web-arm64:
     needs: resolve
@@ -280,7 +280,7 @@ jobs:
           cache-from: |
             type=gha,scope=multica-web-staging-arm64
             type=registry,ref=${{ env.WEB_IMAGE }}:staging-arm64
-          cache-to: type=gha,mode=max,scope=multica-web-staging-arm64
+          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:staging-arm64,mode=max
 
   build-web-merge:
     needs: [resolve, build-web-amd64, build-web-arm64]
