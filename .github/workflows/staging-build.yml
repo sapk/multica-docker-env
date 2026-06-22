@@ -449,7 +449,7 @@ jobs:
       multica_image: ${{ needs.resolve.outputs.backend_image }}
       multica_tag: staging-sha-${{ needs.build-backend-merge.outputs.sha }}
       cache_scope: agent-base-staging
-      setup_qemu: true
+      push: ${{ needs.resolve.outputs.push == 'true' }}
 
   build-agents:
     needs: [resolve, build-backend-merge, build-agent-base]

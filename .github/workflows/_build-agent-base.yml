@@ -20,55 +20,158 @@ on:
         required: true
         type: string
       cache_from_registry_ref:
-        description: "Registry ref for cache-from (e.g. …-base:latest or …-base:staging). Empty to skip."
+        description: "Base registry ref for the cache (e.g. ghcr.io/sapk/multica-agent-base:staging). The per-arch jobs append -amd64-cache/-arm64-cache to read the cache from a separate registry ref. Empty to skip."
         required: false
         type: string
         default: ""
-      setup_qemu:
-        description: "Whether to set up QEMU (needed for cross-platform builds)"
+      push:
+        description: "Push images to GHCR (merge step is skipped when false)"
         required: false
         type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      base_image_tag:
+        description: "Full image:tag to push the base as (defaults to ghcr.io/sapk/multica-agent-base:dispatch)"
+        required: false
+        default: "ghcr.io/sapk/multica-agent-base:dispatch"
+        type: string
+      multica_image:
+        description: "Image to copy /app/multica from"
+        required: false
+        default: "ghcr.io/multica-ai/multica-backend"
+        type: string
+      multica_tag:
+        description: "Tag of the multica image"
+        required: false
+        default: "latest"
+        type: string
+      cache_scope:
+        description: "GHA cache scope for this base"
+        required: false
+        default: "agent-base-dispatch"
+        type: string
+      cache_from_registry_ref:
+        description: "Base registry ref for the cache. The per-arch jobs append -amd64-cache/-arm64-cache. Empty to skip."
+        required: false
+        default: ""
+        type: string
+      push:
+        description: "Push images to GHCR"
+        required: false
+        default: true
+        type: boolean
+      verbose_progress:
+        description: "Show per-step BuildKit timings on the platform jobs (sets BUILDKIT_PROGRESS=plain)"
+        required: false
         default: false
+        type: boolean
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build:
+  build-amd64:
     runs-on: ubuntu-latest
+    env:
+      BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Set up QEMU
-        if: inputs.setup_qemu
-        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
+        if: inputs.push
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push agent base
+      - name: Build and push agent base (linux/amd64)
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.agent
           target: base
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           pull: true
-          push: true
-          tags: ${{ inputs.base_image_tag }}
+          push: ${{ inputs.push }}
+          tags: ${{ inputs.base_image_tag }}-amd64
           build-args: |
             MULTICA_IMAGE=${{ inputs.multica_image }}
             MULTICA_TAG=${{ inputs.multica_tag }}
           cache-from: |
-            type=gha,scope=${{ inputs.cache_scope }}
-            ${{ inputs.cache_from_registry_ref && format('type=registry,ref={0}', inputs.cache_from_registry_ref) || '' }}
-          cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope }}
+            type=gha,scope=${{ inputs.cache_scope }}-amd64
+            ${{ inputs.cache_from_registry_ref && format('type=registry,ref={0}-amd64-cache', inputs.cache_from_registry_ref) || '' }}
+          cache-to: type=registry,ref=${{ inputs.base_image_tag }}-amd64-cache,mode=max
+
+  build-arm64:
+    runs-on: ubuntu-24.04-arm
+    env:
+      BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: inputs.push
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push agent base (linux/arm64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.agent
+          target: base
+          platforms: linux/arm64
+          pull: true
+          push: ${{ inputs.push }}
+          tags: ${{ inputs.base_image_tag }}-arm64
+          build-args: |
+            MULTICA_IMAGE=${{ inputs.multica_image }}
+            MULTICA_TAG=${{ inputs.multica_tag }}
+          cache-from: |
+            type=gha,scope=${{ inputs.cache_scope }}-arm64
+            ${{ inputs.cache_from_registry_ref && format('type=registry,ref={0}-arm64-cache', inputs.cache_from_registry_ref) || '' }}
+          cache-to: type=registry,ref=${{ inputs.base_image_tag }}-arm64-cache,mode=max
+
+  merge:
+    needs: [build-amd64, build-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: inputs.push
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge multi-arch agent base manifest
+        if: inputs.push
+        run: |
+          base_image_tag="${{ inputs.base_image_tag }}"
+          docker buildx imagetools create \
+            --tag "${base_image_tag}" \
+            "${base_image_tag}-amd64" \
+            "${base_image_tag}-arm64"
+          echo "::notice::Merged multi-arch manifest at ${base_image_tag}"
+          docker buildx imagetools inspect "${base_image_tag}"
+
+      - name: Skip notice
+        if: inputs.push != true
+        run: echo "skipping merge (push=false)"
