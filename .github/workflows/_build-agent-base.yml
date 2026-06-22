@@ -178,15 +178,20 @@ jobs:
         working-directory: /tmp/digests
         run: |
           base_image_tag="${{ inputs.base_image_tag }}"
-          # The digests/* files are named by digest (empty content).
-          # The printf below substitutes the filename (the digest) into the
-          # @sha256:... reference for each per-arch image. BASE_IMAGE_NAME is
-          # the image without the :tag suffix — a reference of the form
-          # `image:tag@sha256:...` is malformed, so the merge uses the bare
-          # image name plus the digest.
+          # Strip the :tag from base_image_tag for the per-arch digest references.
+          # A reference of the form `image:tag@sha256:...` is malformed, so we
+          # use the bare image name plus the digest. Derived inline because the
+          # build job's BASE_IMAGE_NAME env var is not visible in this separate
+          # merge job (GHA env vars don't propagate across jobs).
+          base_image_name="${base_image_tag%:*}"
+          # The digests/* files are named by digest (empty content). The printf
+          # below substitutes each filename (the digest) into the @sha256:...
+          # reference, producing one `image@sha256:<digest>` per per-arch image.
+          # The image name is embedded in the format string as a literal; only
+          # the digest is a %s placeholder.
           docker buildx imagetools create \
             --tag "${base_image_tag}" \
-            $(printf '${{ env.BASE_IMAGE_NAME }}@sha256:%s ' *)
+            $(printf "${base_image_name}@sha256:%s " *)
           echo "::notice::Merged multi-arch manifest at ${base_image_tag}"
           docker buildx imagetools inspect "${base_image_tag}"
 
