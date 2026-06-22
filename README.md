@@ -92,6 +92,7 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `GIT_USER_NAME` / `GIT_USER_EMAIL` | placeholder | Baked `.gitconfig` |
 | `NVM_VERSION` | `master` | nvm ref (`master` = rolling; pin e.g. `0.40.4`) |
 | `NODE_VERSION` | `node` | Node via nvm (`node` = latest; pin e.g. `24.15.0`) |
+| `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
 
 Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
 
