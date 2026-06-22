@@ -66,14 +66,29 @@ jobs:
           echo "web_image=${WEB_IMAGE}" >> "$GITHUB_OUTPUT"
           echo "agent_image_prefix=${AGENT_IMAGE_PREFIX}" >> "$GITHUB_OUTPUT"
 
-  build-backend-amd64:
+  build-backend:
     needs: resolve
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    runs-on: ${{ matrix.platform == 'linux/amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
     env:
       BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
     steps:
+      - name: Prepare platform env
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}
+        run: |
+          arch="${PLATFORM##*/}"
+          echo "ARCH=${arch}" >> "$GITHUB_ENV"
+          echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+          echo "CACHE_SCOPE=multica-backend-staging-${arch}" >> "$GITHUB_ENV"
+          echo "CACHE_REF=${BACKEND_IMAGE}:cache-staging-${arch}" >> "$GITHUB_ENV"
+
       - name: Checkout sapk-fork/multica
         uses: actions/checkout@v6
         with:
@@ -82,7 +97,7 @@ jobs:
           path: multica-src
           fetch-depth: 0
 
-      - name: Record commit SHA
+      - name: Record commit SHA and Go pseudo-version
         id: sha
         run: |
           sha="$(git -C multica-src rev-parse HEAD)"
@@ -132,124 +147,61 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend (linux/amd64)
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: multica-src
-          platforms: linux/amd64
+          platforms: ${{ matrix.platform }}
           pull: true
           push: ${{ needs.resolve.outputs.push == 'true' }}
-          tags: |
-            ${{ env.BACKEND_IMAGE }}:staging
-            ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
-            ${{ env.BACKEND_IMAGE }}:staging-amd64
+          outputs: type=image,name=${{ env.BACKEND_IMAGE }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
           build-args: |
             VERSION=${{ steps.sha.outputs.version }}
             COMMIT=${{ steps.sha.outputs.sha }}
             DATE=${{ steps.sha.outputs.date }}
           cache-from: |
-            type=gha,scope=multica-backend-staging-amd64
-            type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-amd64
-          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-amd64,mode=max
+            type=gha,scope=${{ env.CACHE_SCOPE }}
+            type=registry,ref=${{ env.CACHE_REF }}
+          cache-to: type=registry,ref=${{ env.CACHE_REF }},mode=max
 
-  build-backend-arm64:
-    needs: resolve
-    runs-on: ubuntu-24.04-arm
-    outputs:
-      sha: ${{ steps.sha.outputs.sha }}
-    env:
-      BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
-    steps:
-      - name: Checkout sapk-fork/multica
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ env.STAGING_REPO }}
-          ref: ${{ needs.resolve.outputs.ref }}
-          path: multica-src
-          fetch-depth: 0
-
-      - name: Record commit SHA
-        id: sha
-        run: |
-          sha="$(git -C multica-src rev-parse HEAD)"
-          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-          echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
-
-          # Fetch tags from upstream (sapk-fork doesn't have them)
-          git -C multica-src fetch --tags https://github.com/multica-ai/multica.git 2>/dev/null || true
-
-          # Compute Go-style pseudo-version (timestamp must be UTC)
-          timestamp=$(TZ=UTC git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
-          short_sha="${sha:0:12}"
-
-          # Check if we have any tags
-          if git -C multica-src describe --tags --exact-match HEAD >/dev/null 2>&1; then
-            # Exact tag match - use as-is
-            version=$(git -C multica-src describe --tags --exact-match HEAD)
-          elif git -C multica-src describe --tags --abbrev=0 HEAD >/dev/null 2>&1; then
-            # Has prior tag - create pseudo-version with bumped patch
-            base_tag=$(git -C multica-src describe --tags --abbrev=0 HEAD)
-            # Parse vX.Y.Z and bump Z
-            if [[ "$base_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-              major="${BASH_REMATCH[1]}"
-              minor="${BASH_REMATCH[2]}"
-              patch=$(( ${BASH_REMATCH[3]} + 1 ))
-              version="v${major}.${minor}.${patch}-0.${timestamp}-${short_sha}"
-            else
-              # Pre-release or non-standard tag
-              version="${base_tag}.0.${timestamp}-${short_sha}"
-            fi
-          else
-            # No tags at all
-            version="v0.0.0-${timestamp}-${short_sha}"
-          fi
-
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "Building commit: ${sha} (version: ${version})"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
+      - name: Export digest
         if: needs.resolve.outputs.push == 'true'
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
 
-      - name: Build and push backend (linux/arm64)
-        uses: docker/build-push-action@v7
+      - name: Upload digest
+        if: needs.resolve.outputs.push == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          context: multica-src
-          platforms: linux/arm64
-          pull: true
-          push: ${{ needs.resolve.outputs.push == 'true' }}
-          tags: |
-            ${{ env.BACKEND_IMAGE }}:staging
-            ${{ env.BACKEND_IMAGE }}:staging-sha-${{ steps.sha.outputs.sha }}
-            ${{ env.BACKEND_IMAGE }}:staging-arm64
-          build-args: |
-            VERSION=${{ steps.sha.outputs.version }}
-            COMMIT=${{ steps.sha.outputs.sha }}
-            DATE=${{ steps.sha.outputs.date }}
-          cache-from: |
-            type=gha,scope=multica-backend-staging-arm64
-            type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-arm64
-          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:cache-staging-arm64,mode=max
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
   build-backend-merge:
-    needs: [resolve, build-backend-amd64, build-backend-arm64]
+    needs: [resolve, build-backend]
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.setup-sha.outputs.sha }}
     steps:
       - name: Expose backend SHA
         id: setup-sha
+        if: needs.resolve.outputs.push == 'true'
         run: |
-          sha="${{ needs.build-backend-amd64.outputs.sha }}"
+          sha="${{ needs.build-backend.outputs.sha }}"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "Backend SHA: ${sha}"
+
+      - name: Download digests
+        if: needs.resolve.outputs.push == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -264,14 +216,19 @@ jobs:
 
       - name: Merge multi-arch backend manifest
         if: needs.resolve.outputs.push == 'true'
+        working-directory: /tmp/digests
         run: |
           backend_image="${{ needs.resolve.outputs.backend_image }}"
-          sha="${{ steps.setup-sha.outputs.sha }}"
+          # Both matrix legs checkout the same ref, so outputs.sha is identical
+          # on both legs and "last one wins" is safe.
+          sha="${{ needs.build-backend.outputs.sha }}"
+          # The digests/* files are named by digest (empty content).
+          # The printf below substitutes the filename (the digest) into the
+          # @sha256:... reference for each per-arch image.
           docker buildx imagetools create \
             --tag "${backend_image}:staging" \
             --tag "${backend_image}:staging-sha-${sha}" \
-            "${backend_image}:staging-amd64" \
-            "${backend_image}:staging-arm64"
+            $(printf '${{ needs.resolve.outputs.backend_image }}@sha256:%s ' *)
           echo "::notice::Merged multi-arch manifest at ${backend_image}:staging and ${backend_image}:staging-sha-${sha}"
           docker buildx imagetools inspect "${backend_image}:staging"
 
@@ -279,14 +236,29 @@ jobs:
         if: needs.resolve.outputs.push != 'true'
         run: echo "skipping merge (push=false)"
 
-  build-web-amd64:
+  build-web:
     needs: resolve
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    runs-on: ${{ matrix.platform == 'linux/amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
     env:
       BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
     steps:
+      - name: Prepare platform env
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          WEB_IMAGE: ${{ env.WEB_IMAGE }}
+        run: |
+          arch="${PLATFORM##*/}"
+          echo "ARCH=${arch}" >> "$GITHUB_ENV"
+          echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+          echo "CACHE_SCOPE=multica-web-staging-${arch}" >> "$GITHUB_ENV"
+          echo "CACHE_REF=${WEB_IMAGE}:cache-staging-${arch}" >> "$GITHUB_ENV"
+
       - name: Checkout sapk-fork/multica
         uses: actions/checkout@v6
         with:
@@ -318,101 +290,60 @@ jobs:
           images: ${{ env.WEB_IMAGE }}
           labels: |
             org.opencontainers.image.title=Multica Web [staging]
-            org.opencontainers.image.description=Multica web frontend (linux/amd64) — staging build from sapk-fork/multica@${{ needs.resolve.outputs.ref }}
+            org.opencontainers.image.description=Multica web frontend (${{ matrix.platform }}) — staging build from sapk-fork/multica@${{ needs.resolve.outputs.ref }}
             multica.staging.ref=${{ needs.resolve.outputs.ref }}
             multica.staging.sha=${{ steps.sha.outputs.sha }}
-            multica.staging.platform=linux/amd64
+            multica.staging.platform=${{ matrix.platform }}
           tags: |
             type=raw,value=staging
             type=raw,value=staging-sha-${{ steps.sha.outputs.sha }}
-            type=raw,value=staging-amd64
 
-      - name: Build and push
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: multica-src
           file: multica-src/Dockerfile.web
-          platforms: linux/amd64
+          platforms: ${{ matrix.platform }}
           pull: true
           push: ${{ needs.resolve.outputs.push == 'true' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          outputs: type=image,name=${{ env.WEB_IMAGE }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_APP_VERSION=${{ steps.sha.outputs.sha }}
           cache-from: |
-            type=gha,scope=multica-web-staging-amd64
-            type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-amd64
-          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-amd64,mode=max
+            type=gha,scope=${{ env.CACHE_SCOPE }}
+            type=registry,ref=${{ env.CACHE_REF }}
+          cache-to: type=registry,ref=${{ env.CACHE_REF }},mode=max
 
-  build-web-arm64:
-    needs: resolve
-    runs-on: ubuntu-24.04-arm
-    outputs:
-      sha: ${{ steps.sha.outputs.sha }}
-    env:
-      BUILDKIT_PROGRESS: ${{ inputs.verbose_progress == 'true' && 'plain' || 'auto' }}
-    steps:
-      - name: Checkout sapk-fork/multica
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ env.STAGING_REPO }}
-          ref: ${{ needs.resolve.outputs.ref }}
-          path: multica-src
-
-      - name: Record commit SHA
-        id: sha
-        run: |
-          sha="$(git -C multica-src rev-parse HEAD)"
-          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
+      - name: Export digest
         if: needs.resolve.outputs.push == 'true'
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v6
+      - name: Upload digest
+        if: needs.resolve.outputs.push == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          images: ${{ env.WEB_IMAGE }}
-          labels: |
-            org.opencontainers.image.title=Multica Web [staging]
-            org.opencontainers.image.description=Multica web frontend (linux/arm64) — staging build from sapk-fork/multica@${{ needs.resolve.outputs.ref }}
-            multica.staging.ref=${{ needs.resolve.outputs.ref }}
-            multica.staging.sha=${{ steps.sha.outputs.sha }}
-            multica.staging.platform=linux/arm64
-          tags: |
-            type=raw,value=staging
-            type=raw,value=staging-sha-${{ steps.sha.outputs.sha }}
-            type=raw,value=staging-arm64
-
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: multica-src
-          file: multica-src/Dockerfile.web
-          platforms: linux/arm64
-          pull: true
-          push: ${{ needs.resolve.outputs.push == 'true' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            NEXT_PUBLIC_APP_VERSION=${{ steps.sha.outputs.sha }}
-          cache-from: |
-            type=gha,scope=multica-web-staging-arm64
-            type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-arm64
-          cache-to: type=registry,ref=${{ env.WEB_IMAGE }}:cache-staging-arm64,mode=max
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
   build-web-merge:
-    needs: [resolve, build-web-amd64, build-web-arm64]
+    needs: [resolve, build-web]
     runs-on: ubuntu-latest
     steps:
+      - name: Download digests
+        if: needs.resolve.outputs.push == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -424,16 +355,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Merge multi-arch manifest
+      - name: Merge multi-arch web manifest
         if: needs.resolve.outputs.push == 'true'
+        working-directory: /tmp/digests
         run: |
           web_image="${{ needs.resolve.outputs.web_image }}"
-          sha="${{ needs.build-web-amd64.outputs.sha }}"
+          # Both matrix legs checkout the same ref, so outputs.sha is identical
+          # on both legs and "last one wins" is safe.
+          sha="${{ needs.build-web.outputs.sha }}"
+          # The digests/* files are named by digest (empty content).
+          # The printf below substitutes the filename (the digest) into the
+          # @sha256:... reference for each per-arch image.
           docker buildx imagetools create \
             --tag "${web_image}:staging" \
             --tag "${web_image}:staging-sha-${sha}" \
-            "${web_image}:staging-amd64" \
-            "${web_image}:staging-arm64"
+            $(printf '${{ needs.resolve.outputs.web_image }}@sha256:%s ' *)
           echo "::notice::Merged multi-arch manifest at ${web_image}:staging and ${web_image}:staging-sha-${sha}"
           docker buildx imagetools inspect "${web_image}:staging"
 
