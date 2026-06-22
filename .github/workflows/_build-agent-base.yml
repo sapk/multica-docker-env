@@ -84,12 +84,18 @@ jobs:
       - name: Prepare platform env
         env:
           PLATFORM: ${{ matrix.platform }}
+          BASE_IMAGE_TAG: ${{ inputs.base_image_tag }}
           CACHE_SCOPE_BASE: ${{ inputs.cache_scope }}
           CACHE_FROM_REGISTRY_REF: ${{ inputs.cache_from_registry_ref }}
         run: |
           arch="${PLATFORM##*/}"
           echo "ARCH=${arch}" >> "$GITHUB_ENV"
           echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+          # Strip the :tag from base_image_tag for use in the `outputs: name=` field
+          # below. With push-by-digest=true, buildx rejects `name=image:tag` and
+          # requires `name=image` (the canonical digest form is added by
+          # name-canonical=true).
+          echo "BASE_IMAGE_NAME=${BASE_IMAGE_TAG%:*}" >> "$GITHUB_ENV"
           echo "CACHE_SCOPE=${CACHE_SCOPE_BASE}-${arch}" >> "$GITHUB_ENV"
           if [[ -n "${CACHE_FROM_REGISTRY_REF}" ]]; then
             echo "CACHE_REGISTRY_REF=${CACHE_FROM_REGISTRY_REF}-${arch}-cache" >> "$GITHUB_ENV"
@@ -119,7 +125,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           pull: true
           push: ${{ inputs.push }}
-          outputs: type=image,name=${{ inputs.base_image_tag }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
+          outputs: type=image,name=${{ env.BASE_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
           build-args: |
             MULTICA_IMAGE=${{ inputs.multica_image }}
             MULTICA_TAG=${{ inputs.multica_tag }}
@@ -174,10 +180,13 @@ jobs:
           base_image_tag="${{ inputs.base_image_tag }}"
           # The digests/* files are named by digest (empty content).
           # The printf below substitutes the filename (the digest) into the
-          # @sha256:... reference for each per-arch image.
+          # @sha256:... reference for each per-arch image. BASE_IMAGE_NAME is
+          # the image without the :tag suffix — a reference of the form
+          # `image:tag@sha256:...` is malformed, so the merge uses the bare
+          # image name plus the digest.
           docker buildx imagetools create \
             --tag "${base_image_tag}" \
-            $(printf '${{ inputs.base_image_tag }}@sha256:%s ' *)
+            $(printf '${{ env.BASE_IMAGE_NAME }}@sha256:%s ' *)
           echo "::notice::Merged multi-arch manifest at ${base_image_tag}"
           docker buildx imagetools inspect "${base_image_tag}"
 
