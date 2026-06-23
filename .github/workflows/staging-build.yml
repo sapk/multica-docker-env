@@ -307,7 +307,16 @@ jobs:
           platforms: ${{ matrix.platform }}
           pull: true
           push: ${{ needs.resolve.outputs.push == 'true' }}
-          outputs: type=image,name=${{ env.WEB_IMAGE }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
+          # OCI mediatypes disabled on purpose: with oci-mediatypes=true on a
+          # single-platform build, buildx wraps the image in an OCI image
+          # index, and `outputs.digest` returns the *index* digest. The merge
+          # step then references that digest as a manifest in
+          # `docker buildx imagetools create`, which fails with
+          # `manifest unknown` (GHCR has the index at that digest, not a
+          # manifest). Docker V2 schema-2 mediatypes give us a flat
+          # per-platform manifest whose digest is the one we want to hand
+          # to the merge step.
+          outputs: type=image,name=${{ env.WEB_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_APP_VERSION=${{ steps.sha.outputs.sha }}
