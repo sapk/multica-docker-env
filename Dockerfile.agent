@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
       openssh-client \
       jq ripgrep \
-      python3 python3-venv \
+      python3 \
       podman \
       passt \
       aardvark-dns \
@@ -104,13 +104,26 @@ RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VER
  && rm /tmp/rtk-install.sh \
  && RTK_BIN="$(PATH="$HOME/.local/bin:$PATH" command -v rtk)" && [ -x "${RTK_BIN}" ] && ln -sf "${RTK_BIN}" "$HOME/.local/bin/rk"
 
+# uv — modern Python package/project manager; used for `uv tool install` (CLI venvs).
+# Install as the agent user into $HOME/.local/bin (the same dir rtk uses), so the
+# binary lands on the default PATH (see ENV PATH below). Installing to /usr/local
+# would require running as root and the install script's flat layout would put
+# the binary at /usr/local/uv (not on the default PATH) — $HOME/.local/bin/uv is
+# simpler and matches the rtk install pattern.
+ARG UV_VERSION=0.11.23
+ARG UV_INSTALL_SHA256=f2217f2fe451df47895a580143e2707b59c995186b47dfaa2e92b1aedf0dc764
+RUN curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" -o /tmp/uv-install.sh \
+ && echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - \
+ && UV_INSTALL_DIR="$HOME/.local" sh /tmp/uv-install.sh \
+ && rm /tmp/uv-install.sh \
+ && UV_BIN="$(PATH="$HOME/.local/bin:$PATH" command -v uv || command -v "$HOME/.local/uv")" \
+ && [ -x "${UV_BIN}" ] && ln -sf "${UV_BIN}" "$HOME/.local/bin/uv" \
+ && "${UV_BIN}" --version
+
 # mcp-proxy — stdio↔SSE/Streamable-HTTP bridge so any agent CLI can talk to remote MCP servers.
 ARG MCP_PROXY_VERSION=v0.12.0
-RUN mkdir -p "$HOME/.local/bin" \
- && python3 -m venv "$HOME/.local/mcp-proxy" \
- && "$HOME/.local/mcp-proxy/bin/pip" install --no-cache-dir "mcp-proxy==${MCP_PROXY_VERSION#v}" \
- && ln -sf "$HOME/.local/mcp-proxy/bin/mcp-proxy" "$HOME/.local/bin/mcp-proxy" \
- && "$HOME/.local/bin/mcp-proxy" --version
+RUN PATH="$HOME/.local/bin:$PATH" uv tool install "mcp-proxy==${MCP_PROXY_VERSION#v}" \
+ && PATH="$HOME/.local/bin:$PATH" mcp-proxy --version
 
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
 
