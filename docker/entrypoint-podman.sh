@@ -27,7 +27,6 @@ fi
 if [ "${ENABLE_RTK}" = "true" ] && command -v rtk >/dev/null 2>&1; then
     if   [ -n "${MULTICA_CLAUDE_PATH}" ];      then ( rtk init -g )                     || echo "[entrypoint] RTK init failed for claude."
     elif [ -n "${MULTICA_CURSOR_PATH}" ];      then ( rtk init -g --agent cursor )      || echo "[entrypoint] RTK init failed for cursor."
-    elif [ -n "${MULTICA_GEMINI_PATH}" ];      then ( rtk init -g --gemini )            || echo "[entrypoint] RTK init failed for gemini."
     elif [ -n "${MULTICA_CODEX_PATH}" ];       then ( rtk init -g --codex )             || echo "[entrypoint] RTK init failed for codex."
     elif [ -n "${MULTICA_OPENCODE_PATH}" ];    then ( rtk init -g --opencode )          || echo "[entrypoint] RTK init failed for opencode."
     # antigravity does not support -g (no global workspace config)
