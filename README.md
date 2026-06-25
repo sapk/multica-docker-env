@@ -8,7 +8,6 @@ Docker images for [Multica](https://github.com/multica/multica) agent daemons â€
 | `ghcr.io/sapk/multica-agent-cursor` | `cursor` | [Cursor CLI](https://cursor.com) |
 | `ghcr.io/sapk/multica-agent-opencode` | `opencode` | [OpenCode](https://opencode.ai) |
 | `ghcr.io/sapk/multica-agent-codex` | `codex` | [OpenAI Codex CLI](https://developers.openai.com/codex/cli) |
-| `ghcr.io/sapk/multica-agent-gemini` | `gemini` | [Gemini CLI](https://github.com/google-gemini/gemini-cli) |
 | `ghcr.io/sapk/multica-agent-agy` | `agy` | [Antigravity CLI](https://antigravity.google/docs/cli-getting-started) |
 
 Shared layers live in the `base` stage (multica CLI from the official backend image, Podman, nvm, pnpm, entrypoint). Each variant adds its CLI.
@@ -22,7 +21,6 @@ docker pull ghcr.io/sapk/multica-agent-claude:latest
 docker pull ghcr.io/sapk/multica-agent-cursor:latest
 docker pull ghcr.io/sapk/multica-agent-opencode:latest
 docker pull ghcr.io/sapk/multica-agent-codex:latest
-docker pull ghcr.io/sapk/multica-agent-gemini:latest
 docker pull ghcr.io/sapk/multica-agent-agy:latest
 ```
 

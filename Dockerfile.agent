@@ -3,7 +3,7 @@
 #   make build-all
 #   make build-claude IMAGE=ghcr.io/org/multica-agent TAG=v1.0.0
 #
-# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode|codex|gemini|agy> -t <image> .
+# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode|codex|agy> -t <image> .
 
 ARG MULTICA_IMAGE=ghcr.io/multica-ai/multica-backend
 ARG MULTICA_TAG=latest
@@ -189,16 +189,6 @@ ARG USERNAME=agent
 
 RUN npm install -g @openai/codex
 ENV MULTICA_CODEX_PATH=/home/${USERNAME}/.local/node-active/codex
-
-# ---------------------------------------------------------------------------
-# gemini — Google Gemini CLI (npm @google/gemini-cli)
-# ---------------------------------------------------------------------------
-FROM ${AGENT_BASE_IMAGE} AS gemini
-
-ARG USERNAME=agent
-
-RUN npm install -g @google/gemini-cli
-ENV MULTICA_GEMINI_PATH=/home/${USERNAME}/.local/node-active/gemini
 
 # ---------------------------------------------------------------------------
 # agy — Antigravity CLI
