@@ -96,8 +96,8 @@ RUN GO_ARCH="$(uname -m)" \
  && rm /tmp/go.tar.gz \
  && "${HOME}/.local/go/bin/go" version
 
-ARG RTK_VERSION=v0.42.3
-ARG RTK_INSTALL_SHA256=ab22d109f920db7d931ef6aa97d9460d93f41d296981db8446afed96ea9661e5
+ARG RTK_VERSION=v0.42.4
+ARG RTK_INSTALL_SHA256=d6eb73a772903e13ff34ee1be8a8b24e896ba9a978f20d2279a08b4083ea6f77
 RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VERSION}/install.sh" -o /tmp/rtk-install.sh \
  && echo "${RTK_INSTALL_SHA256}  /tmp/rtk-install.sh" | sha256sum -c - \
  && RTK_VERSION="${RTK_VERSION}" sh /tmp/rtk-install.sh \
@@ -110,8 +110,8 @@ RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VER
 # would require running as root and the install script's flat layout would put
 # the binary at /usr/local/uv (not on the default PATH) — $HOME/.local/bin/uv is
 # simpler and matches the rtk install pattern.
-ARG UV_VERSION=0.11.23
-ARG UV_INSTALL_SHA256=f2217f2fe451df47895a580143e2707b59c995186b47dfaa2e92b1aedf0dc764
+ARG UV_VERSION=0.11.24
+ARG UV_INSTALL_SHA256=b3c113bcb8b5f361805bc2283cb1bcc8f3e07b5f0387a12e4f6e71281f7ec120
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" -o /tmp/uv-install.sh \
  && echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - \
