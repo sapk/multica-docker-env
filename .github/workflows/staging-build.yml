@@ -90,7 +90,7 @@ jobs:
           echo "CACHE_REF=${BACKEND_IMAGE}:cache-staging-${arch}" >> "$GITHUB_ENV"
 
       - name: Checkout sapk-fork/multica
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.STAGING_REPO }}
           ref: ${{ needs.resolve.outputs.ref }}
@@ -260,7 +260,7 @@ jobs:
           echo "CACHE_REF=${WEB_IMAGE}:cache-staging-${arch}" >> "$GITHUB_ENV"
 
       - name: Checkout sapk-fork/multica
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.STAGING_REPO }}
           ref: ${{ needs.resolve.outputs.ref }}
@@ -405,7 +405,7 @@ jobs:
         variant: [claude, cursor, opencode, codex, agy]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
