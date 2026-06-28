@@ -96,6 +96,19 @@ RUN GO_ARCH="$(uname -m)" \
  && rm /tmp/go.tar.gz \
  && "${HOME}/.local/go/bin/go" version
 
+# golangci-lint — Go static-analysis aggregator, available to agents working on Go code.
+# Pin the version and verify the install script's SHA256 (rtk/uv pattern); the script
+# itself then downloads the matching release binary and checks its checksum internally.
+# Installs into $HOME/.local/bin, already on PATH (see ENV PATH below).
+ARG GOLANGCI_LINT_VERSION=v2.12.2
+ARG GOLANGCI_LINT_INSTALL_SHA256=d32d3534af96cfd59546a084d22b213e8a47541cada5013aa8a84c4fa2589905
+RUN mkdir -p "$HOME/.local/bin" \
+ && curl -fsSL "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_VERSION}/install.sh" -o /tmp/golangci-lint-install.sh \
+ && echo "${GOLANGCI_LINT_INSTALL_SHA256}  /tmp/golangci-lint-install.sh" | sha256sum -c - \
+ && sh /tmp/golangci-lint-install.sh -b "$HOME/.local/bin" "${GOLANGCI_LINT_VERSION}" \
+ && rm /tmp/golangci-lint-install.sh \
+ && "$HOME/.local/bin/golangci-lint" version
+
 ARG RTK_VERSION=v0.42.4
 ARG RTK_INSTALL_SHA256=d6eb73a772903e13ff34ee1be8a8b24e896ba9a978f20d2279a08b4083ea6f77
 RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VERSION}/install.sh" -o /tmp/rtk-install.sh \
