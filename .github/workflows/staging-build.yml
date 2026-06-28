@@ -197,7 +197,7 @@ jobs:
 
       - name: Download digests
         if: needs.resolve.outputs.push == 'true'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
           pattern: digests-backend-*
@@ -347,7 +347,7 @@ jobs:
     steps:
       - name: Download digests
         if: needs.resolve.outputs.push == 'true'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
           pattern: digests-web-*
