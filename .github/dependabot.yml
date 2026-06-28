@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # Keep GitHub Actions (e.g. actions/upload-artifact, docker/*) up to date.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    groups:
+      # One PR per week for all minor/patch action bumps to cut noise.
+      github-actions:
+        update-types:
+          - minor
+          - patch
+
+  # Keep Docker base images in Dockerfile.agent up to date.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
