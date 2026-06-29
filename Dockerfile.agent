@@ -31,6 +31,11 @@ ARG GIT_USER_EMAIL=agent@example.com
 RUN groupadd --gid ${USER_GID} ${USERNAME} \
  && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME}
 
+# gcc + libc6-dev provide the C toolchain cgo needs. `go test -race` (and any
+# other CGO_ENABLED=1 build) links against the C runtime, so without these the
+# race detector fails to compile. They are listed explicitly because the apt
+# install runs with --no-install-recommends (gcc would otherwise only suggest
+# libc6-dev, never pull it in).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       tzdata \
@@ -40,6 +45,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       openssh-client \
       jq ripgrep \
       python3 \
+      gcc \
+      libc6-dev \
       podman \
       passt \
       aardvark-dns \
