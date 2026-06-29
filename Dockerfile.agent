@@ -34,8 +34,8 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
 # gcc + libc6-dev provide the C toolchain cgo needs. `go test -race` (and any
 # other CGO_ENABLED=1 build) links against the C runtime, so without these the
 # race detector fails to compile. They are listed explicitly because the apt
-# install runs with --no-install-recommends (gcc would otherwise only suggest
-# libc6-dev, never pull it in).
+# install runs with --no-install-recommends (gcc only Recommends libc6-dev,
+# so it would never be pulled in automatically here).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       tzdata \
