@@ -10,7 +10,9 @@ Docker images for [Multica](https://github.com/multica/multica) agent daemons â€
 | `ghcr.io/sapk/multica-agent-codex` | `codex` | [OpenAI Codex CLI](https://developers.openai.com/codex/cli) |
 | `ghcr.io/sapk/multica-agent-agy` | `agy` | [Antigravity CLI](https://antigravity.google/docs/cli-getting-started) |
 
-Shared layers live in the `base` stage (multica CLI from the official backend image, Podman, nvm, pnpm, entrypoint). Each variant adds its CLI.
+Shared layers live in the `base` stage (multica CLI from the official backend image, Podman, nvm, pnpm, the Go toolchain, entrypoint). Each variant adds its CLI.
+
+The base also ships a C toolchain (`gcc` + `libc6-dev`) so cgo-dependent Go builds work out of the box â€” in particular `go test -race`, which requires `CGO_ENABLED=1` and a linker against the C runtime.
 
 ## Pull images
 
