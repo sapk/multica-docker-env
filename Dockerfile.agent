@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       bash \
       curl \
       git \
+      git-flow \
       openssh-client \
       jq ripgrep \
       python3 \
