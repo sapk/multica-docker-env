@@ -14,6 +14,8 @@ Shared layers live in the `base` stage (multica CLI from the official backend im
 
 The base also ships a C toolchain (`gcc` + `libc6-dev`) so cgo-dependent Go builds work out of the box — in particular `go test -race`, which requires `CGO_ENABLED=1` and a linker against the C runtime.
 
+It also ships [`git-flow`](https://github.com/petervanderdoes/gitflow-avh) (the Debian `git-flow` package, AVH edition) so agents can run git-flow release/hotfix workflows without an extra install step.
+
 ## Pull images
 
 Published by CI to [GitHub Container Registry](https://github.com/sapk?tab=packages) (`ghcr.io/sapk/…`).
