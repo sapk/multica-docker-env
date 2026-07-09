@@ -10,7 +10,7 @@ Docker images for [Multica](https://github.com/multica/multica) agent daemons �
 | `ghcr.io/sapk/multica-agent-codex` | `codex` | [OpenAI Codex CLI](https://developers.openai.com/codex/cli) |
 | `ghcr.io/sapk/multica-agent-agy` | `agy` | [Antigravity CLI](https://antigravity.google/docs/cli-getting-started) |
 
-Shared layers live in the `base` stage (multica CLI from the official backend image, Podman, nvm, pnpm, the Go toolchain, entrypoint). Each variant adds its CLI.
+Shared layers live in the `base` stage (multica CLI from the official backend image, Podman, nvm, pnpm, the Go toolchain, `glab`, entrypoint). Each variant adds its CLI.
 
 The base also ships a C toolchain (`gcc` + `libc6-dev`) so cgo-dependent Go builds work out of the box — in particular `go test -race`, which requires `CGO_ENABLED=1` and a linker against the C runtime.
 
@@ -96,6 +96,7 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `NODE_VERSION` | `node` | Node via nvm (`node` = latest; pin e.g. `24.15.0`) |
 | `UV_VERSION` | `0.11.23` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
 | `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
+| `GLAB_VERSION` | `1.107.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
 
 Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
 

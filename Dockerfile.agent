@@ -142,6 +142,24 @@ RUN mkdir -p "$HOME/.local/bin" \
  && [ -x "${UV_BIN}" ] && ln -sf "${UV_BIN}" "$HOME/.local/bin/uv" \
  && "${UV_BIN}" --version
 
+# glab — GitLab CLI, so agents can interact with GitLab (MRs, issues, CI, etc.) from the command line.
+# Downloads the prebuilt binary tarball from the official release assets and verifies its SHA256
+# against the published checksums. Installs into $HOME/.local/bin (already on PATH via ENV PATH below).
+ARG GLAB_VERSION=1.107.0
+RUN GLAB_ARCH="$(uname -m)" \
+ && case "${GLAB_ARCH}" in \
+      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="eb42f56eb1a789cf4f22aa5960ff0ef60cf1e7fc1295327501f9f59030d5ae2c" ;; \
+      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="8356e442ed42ff6973cbe267dd7371c65f9b810b01e7d70bb557cd284e7b35ba" ;; \
+      *) echo "Unsupported architecture: ${GLAB_ARCH}" && exit 1 ;; \
+    esac \
+ && curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_${GLAB_ARCH}.tar.gz" -o /tmp/glab.tar.gz \
+ && echo "${GLAB_SHA256}  /tmp/glab.tar.gz" | sha256sum -c - \
+ && tar -xzf /tmp/glab.tar.gz -C /tmp bin/glab \
+ && mv /tmp/bin/glab "$HOME/.local/bin/glab" \
+ && chmod +x "$HOME/.local/bin/glab" \
+ && rm -rf /tmp/glab.tar.gz /tmp/bin \
+ && "$HOME/.local/bin/glab" version
+
 # mcp-proxy — stdio↔SSE/Streamable-HTTP bridge so any agent CLI can talk to remote MCP servers.
 ARG MCP_PROXY_VERSION=v0.12.0
 RUN PATH="$HOME/.local/bin:$PATH" uv tool install "mcp-proxy==${MCP_PROXY_VERSION#v}" \
