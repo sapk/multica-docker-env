@@ -147,6 +147,12 @@ ARG MCP_PROXY_VERSION=v0.12.0
 RUN PATH="$HOME/.local/bin:$PATH" uv tool install "mcp-proxy==${MCP_PROXY_VERSION#v}" \
  && PATH="$HOME/.local/bin:$PATH" mcp-proxy --version
 
+# spec-kit — GitHub's spec-driven development toolkit (specify CLI).
+# Installed from git so agents can run `specify init` and use /speckit.* workflows.
+ARG SPEC_KIT_REF=main
+RUN PATH="$HOME/.local/bin:$PATH" uv tool install "git+https://github.com/github/spec-kit.git@${SPEC_KIT_REF}" \
+ && PATH="$HOME/.local/bin:$PATH" specify --version
+
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
 
 RUN mkdir -p /home/${USERNAME}/.ssh \
