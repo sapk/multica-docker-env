@@ -16,6 +16,8 @@ The base also ships a C toolchain (`gcc` + `libc6-dev`) so cgo-dependent Go buil
 
 It also ships [`git-flow`](https://github.com/petervanderdoes/gitflow-avh) (the Debian `git-flow` package, AVH edition) so agents can run git-flow release/hotfix workflows without an extra install step.
 
+[Playwright](https://playwright.dev/) is pre-installed with Chromium, Firefox, and WebKit browser binaries, along with the system libraries (X11, NSS, ATK, Pango, GBM, fonts) they need to run headless. Agents running webapp E2E tests skip the `playwright install-deps` and `playwright install` steps entirely — browsers are ready to use immediately.
+
 ## Pull images
 
 Published by CI to [GitHub Container Registry](https://github.com/sapk?tab=packages) (`ghcr.io/sapk/…`).
@@ -97,6 +99,7 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `UV_VERSION` | `0.11.23` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
 | `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
 | `GLAB_VERSION` | `1.107.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
+| `PLAYWRIGHT_VERSION` | `1.52.0` | [`@playwright/test`](https://playwright.dev) release tag (browser E2E testing; pre-installs Chromium, Firefox, WebKit) |
 
 Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
 
