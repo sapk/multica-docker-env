@@ -117,7 +117,7 @@ RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(whi
 ARG PLAYWRIGHT_VERSION=1.52.0
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/${USERNAME}/.cache/ms-playwright
 RUN npm install -g @playwright/test@${PLAYWRIGHT_VERSION} \
- && playwright install chromium \
+ && DEBUG=pw:install playwright install chromium \
  && playwright --version
 
 ARG GO_VERSION=1.26.5
