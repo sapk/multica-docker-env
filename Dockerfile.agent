@@ -11,7 +11,7 @@ ARG AGENT_BASE_IMAGE=base
 FROM ${MULTICA_IMAGE}:${MULTICA_TAG} AS multica
 
 # ---------------------------------------------------------------------------
-# base — multica CLI, Podman, nvm, pnpm, entrypoint (no agent CLI)
+# base — multica CLI, Podman, nvm, pnpm, Playwright, entrypoint (no agent CLI)
 # ---------------------------------------------------------------------------
 FROM debian:stable-slim AS base
 
@@ -36,6 +36,13 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
 # race detector fails to compile. They are listed explicitly because the apt
 # install runs with --no-install-recommends (gcc only Recommends libc6-dev,
 # so it would never be pulled in automatically here).
+#
+# Headless-browser system deps (Playwright): Chromium, Firefox, and WebKit all
+# need X11/NSS/ATK/Pango/GBM/etc. libraries to launch in a headless container.
+# Pre-installing them here means agents running webapp E2E tests skip the
+# `playwright install-deps` step (which runs apt-get internally and is one of
+# the slowest parts of test setup). fonts-liberation + fonts-noto-color-emoji
+# avoid tofu/inconsistent rendering in screenshot-based tests.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       tzdata \
@@ -55,6 +62,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fuse-overlayfs \
       slirp4netns \
       uidmap \
+      libnss3 libnspr4 \
+      libatk1.0-0 libatk-bridge2.0-0 \
+      libcups2 libdrm2 \
+      libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+      libgbm1 libpango-1.0-0 libcairo2 \
+      libasound2 libatspi2.0-0 libxshmfence1 \
+      libgtk-3-0 libgdk-pixbuf-2.0-0 \
+      libglib2.0-0 libxml2 libxslt1.1 \
+      libjpeg62-turbo libpng16-16 libwebpdemux2 \
+      libhyphen0 libenchant-2-2 libsecret-1-0 \
+      libgles2 libevdev2 libdbus-glib-1-2 \
+      fonts-liberation fonts-noto-color-emoji fonts-freefont-ttf \
   && rm -rf /var/lib/apt/lists/* \
   && touch /etc/subuid /etc/subgid \
   && sed -i "/^${USERNAME}:/d" /etc/subuid 2>/dev/null || true \
@@ -90,6 +109,18 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && mkdir -p "${HOME}/.local" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
+
+# Headless-browser system deps (Playwright): Chromium, Firefox, and WebKit all
+# need X11/NSS/ATK/Pango/GBM/etc. libraries to launch in a headless container.
+# Pre-installing them here means agents running webapp E2E tests skip the
+# `playwright install-deps` step (which runs apt-get internally and is one of
+# the slowest parts of test setup). fonts-liberation + fonts-noto-color-emoji
+# avoid tofu/inconsistent rendering in screenshot-based tests.
+#
+# Note: Playwright browser binaries are NOT pre-installed in the base image.
+# Agents should run `npx playwright install chromium` (or firefox/webkit) at
+# runtime when needed. This avoids CI hangs during image build while still
+# providing the system libraries browsers depend on.
 
 ARG GO_VERSION=1.26.5
 RUN GO_ARCH="$(uname -m)" \

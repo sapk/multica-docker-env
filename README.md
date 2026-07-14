@@ -16,6 +16,8 @@ The base also ships a C toolchain (`gcc` + `libc6-dev`) so cgo-dependent Go buil
 
 It also ships [`git-flow`](https://github.com/petervanderdoes/gitflow-avh) (the Debian `git-flow` package, AVH edition) so agents can run git-flow release/hotfix workflows without an extra install step.
 
+The base image includes system libraries required for headless browser testing (X11, NSS, ATK, Pango, GBM, fonts, etc.), so agents can run Playwright tests without installing system dependencies. However, browser binaries themselves are not pre-installed to avoid CI build hangs. Agents should run `npx playwright install chromium` (or `firefox`/`webkit`) at runtime when needed.
+
 ## Pull images
 
 Published by CI to [GitHub Container Registry](https://github.com/sapk?tab=packages) (`ghcr.io/sapk/…`).
