@@ -110,15 +110,17 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
-# Playwright — pre-install the CLI and browser binaries so webapp E2E tests
-# start immediately without downloading ~400MB of browsers at test time.
-# PLAYWRIGHT_BROWSERS_PATH keeps the binaries in a predictable location that
-# survives nvm node switches; agents can override per-project if needed.
-ARG PLAYWRIGHT_VERSION=1.52.0
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/${USERNAME}/.cache/ms-playwright
-RUN npm install -g @playwright/test@${PLAYWRIGHT_VERSION} \
- && DEBUG=pw:install playwright install chromium \
- && playwright --version
+# Headless-browser system deps (Playwright): Chromium, Firefox, and WebKit all
+# need X11/NSS/ATK/Pango/GBM/etc. libraries to launch in a headless container.
+# Pre-installing them here means agents running webapp E2E tests skip the
+# `playwright install-deps` step (which runs apt-get internally and is one of
+# the slowest parts of test setup). fonts-liberation + fonts-noto-color-emoji
+# avoid tofu/inconsistent rendering in screenshot-based tests.
+#
+# Note: Playwright browser binaries are NOT pre-installed in the base image.
+# Agents should run `npx playwright install chromium` (or firefox/webkit) at
+# runtime when needed. This avoids CI hangs during image build while still
+# providing the system libraries browsers depend on.
 
 ARG GO_VERSION=1.26.5
 RUN GO_ARCH="$(uname -m)" \
