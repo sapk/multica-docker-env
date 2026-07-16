@@ -191,6 +191,22 @@ RUN GLAB_ARCH="$(uname -m)" \
  && rm -rf /tmp/glab.tar.gz /tmp/bin \
  && "$HOME/.local/bin/glab" version
 
+# DuckDB — in-process SQL OLAP database CLI; useful for querying CSV/Parquet/SQLite/Postgres
+# and other data sources from the command line. Prebuilt binary from official GitHub releases.
+ARG DUCKDB_VERSION=v1.5.4
+RUN DUCKDB_ARCH="$(uname -m)" \
+ && case "${DUCKDB_ARCH}" in \
+      x86_64)  DUCKDB_ARCH="amd64"; DUCKDB_SHA256="c1d6db2294895c97849bee574b21eb462528857ccf8a23617dd3e0a05dd4b770" ;; \
+      aarch64) DUCKDB_ARCH="arm64"; DUCKDB_SHA256="32fea57520b1ae6caa291717d5f5d4d478fb6f8ed2d2c7054096a038fc6be833" ;; \
+      *) echo "Unsupported architecture: ${DUCKDB_ARCH}" && exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/duckdb_cli-linux-${DUCKDB_ARCH}.gz" -o /tmp/duckdb.gz \
+ && echo "${DUCKDB_SHA256}  /tmp/duckdb.gz" | sha256sum -c - \
+ && gunzip /tmp/duckdb.gz \
+ && mv duckdb "$HOME/.local/bin/duckdb" \
+ && chmod +x "$HOME/.local/bin/duckdb" \
+ && "$HOME/.local/bin/duckdb" --version
+
 # mcp-proxy — stdio↔SSE/Streamable-HTTP bridge so any agent CLI can talk to remote MCP servers.
 ARG MCP_PROXY_VERSION=v0.12.0
 RUN PATH="$HOME/.local/bin:$PATH" uv tool install "mcp-proxy==${MCP_PROXY_VERSION#v}" \

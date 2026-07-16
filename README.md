@@ -16,6 +16,8 @@ The base also ships a C toolchain (`gcc` + `libc6-dev`) so cgo-dependent Go buil
 
 It also ships [`git-flow`](https://github.com/petervanderdoes/gitflow-avh) (the Debian `git-flow` package, AVH edition) so agents can run git-flow release/hotfix workflows without an extra install step.
 
+The base image includes [DuckDB](https://duckdb.org/) CLI for querying CSV, Parquet, JSON, SQLite, and other data sources directly from the command line.
+
 The base image includes system libraries required for headless browser testing (X11, NSS, ATK, Pango, GBM, fonts, etc.), so agents can run Playwright tests without installing system dependencies. However, browser binaries themselves are not pre-installed to avoid CI build hangs. Agents should run `npx playwright install chromium` (or `firefox`/`webkit`) at runtime when needed.
 
 ## Pull images
@@ -99,6 +101,7 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `UV_VERSION` | `0.11.23` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
 | `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
 | `GLAB_VERSION` | `1.107.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
+| `DUCKDB_VERSION` | `v1.5.4` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
 
 Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
 
