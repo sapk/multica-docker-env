@@ -110,6 +110,10 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
+# @playwright/test — provides the Playwright API/CLI for agents without the ~170MB+ browser binaries.
+# Browser binaries are NOT installed here; agents run `npx playwright install <browser>` at runtime.
+RUN npm install -g @playwright/test
+
 # Headless-browser system deps (Playwright): Chromium, Firefox, and WebKit all
 # need X11/NSS/ATK/Pango/GBM/etc. libraries to launch in a headless container.
 # Pre-installing them here means agents running webapp E2E tests skip the
