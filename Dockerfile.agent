@@ -162,8 +162,8 @@ RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VER
 # would require running as root and the install script's flat layout would put
 # the binary at /usr/local/uv (not on the default PATH) — $HOME/.local/bin/uv is
 # simpler and matches the rtk install pattern.
-ARG UV_VERSION=0.11.28
-ARG UV_INSTALL_SHA256=b7b3fe80cad1142a2a5794050b7db7b3291d1bac1423b0732571dd9366e8ca8b
+ARG UV_VERSION=0.11.29
+ARG UV_INSTALL_SHA256=504a79fd2ed0dcd47e7f04f0792cfd0871f62e24a7fe40fa8ae0f563a369f2bd
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" -o /tmp/uv-install.sh \
  && echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - \
@@ -176,11 +176,11 @@ RUN mkdir -p "$HOME/.local/bin" \
 # glab — GitLab CLI, so agents can interact with GitLab (MRs, issues, CI, etc.) from the command line.
 # Downloads the prebuilt binary tarball from the official release assets and verifies its SHA256
 # against the published checksums. Installs into $HOME/.local/bin (already on PATH via ENV PATH below).
-ARG GLAB_VERSION=1.107.0
+ARG GLAB_VERSION=1.108.0
 RUN GLAB_ARCH="$(uname -m)" \
  && case "${GLAB_ARCH}" in \
-      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="eb42f56eb1a789cf4f22aa5960ff0ef60cf1e7fc1295327501f9f59030d5ae2c" ;; \
-      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="8356e442ed42ff6973cbe267dd7371c65f9b810b01e7d70bb557cd284e7b35ba" ;; \
+      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="cb3eb9d6b05eedef24a028b52354f12fb9a07ecfa0b5581eb161176585bc8213" ;; \
+      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="681031c6477dc7eb53b07a4641e2defc6795cf7ffb18ddc6cf8bdbc1211ed782" ;; \
       *) echo "Unsupported architecture: ${GLAB_ARCH}" && exit 1 ;; \
     esac \
  && curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_${GLAB_ARCH}.tar.gz" -o /tmp/glab.tar.gz \
