@@ -98,9 +98,9 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `GIT_USER_NAME` / `GIT_USER_EMAIL` | placeholder | Baked `.gitconfig` |
 | `NVM_VERSION` | `master` | nvm ref (`master` = rolling; pin e.g. `0.40.4`) |
 | `NODE_VERSION` | `node` | Node via nvm (`node` = latest; pin e.g. `24.15.0`) |
-| `UV_VERSION` | `0.11.23` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
+| `UV_VERSION` | `0.11.29` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
 | `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
-| `GLAB_VERSION` | `1.107.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
+| `GLAB_VERSION` | `1.108.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
 | `DUCKDB_VERSION` | `v1.5.4` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
 
 Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
