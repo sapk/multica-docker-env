@@ -114,17 +114,48 @@ RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(whi
 # Browser binaries are NOT installed here; agents run `npx playwright install <browser>` at runtime.
 RUN npm install -g @playwright/test
 
-# Headless-browser system deps (Playwright): Chromium, Firefox, and WebKit all
-# need X11/NSS/ATK/Pango/GBM/etc. libraries to launch in a headless container.
-# Pre-installing them here means agents running webapp E2E tests skip the
-# `playwright install-deps` step (which runs apt-get internally and is one of
-# the slowest parts of test setup). fonts-liberation + fonts-noto-color-emoji
-# avoid tofu/inconsistent rendering in screenshot-based tests.
+# Playwright browser binaries (Chromium, Firefox, WebKit).
 #
-# Note: Playwright browser binaries are NOT pre-installed in the base image.
-# Agents should run `npx playwright install chromium` (or firefox/webkit) at
-# runtime when needed. This avoids CI hangs during image build while still
-# providing the system libraries browsers depend on.
+# Root-cause analysis of the M-80 hang (3+ hours during browser extraction):
+#   Playwright downloads each browser as a large zip (Chromium ~280 MB, Firefox
+#   ~100 MB, WebKit ~100 MB) and extracts it via Node.js in a single process.
+#   In Docker BuildKit the RUN step runs inside a container with default memory
+#   limits. The zip extraction loads the entire archive into the Node.js heap
+#   before writing files, which on a memory-constrained builder causes the
+#   process to stall (heavy swapping) or get silently OOM-killed. The overlay2
+#   filesystem adds copy-on-write overhead for the thousands of small files
+#   browsers contain, compounding the slowdown. No interactive prompt was
+#   involved — the process was alive but making no forward progress.
+#
+# Mitigation applied here:
+#   1. `timeout 300` wraps the install so a stalled extraction fails the build
+#      after 5 minutes instead of hanging for hours.
+#   2. Diagnostics (free memory, disk space) are logged before and after so
+#      future hangs can be triaged from CI logs.
+#   3. CI=true prevents any interactive prompts from blocking.
+#   4. PLAYWRIGHT_BROWSERS_PATH pins the install location for predictability.
+#
+# If the timeout fires, the build fails with exit code 124 and a clear error
+# message. To troubleshoot: check the CI logs for the pre-install diagnostics
+# (memory/disk), consider increasing builder memory, or install browsers at
+# runtime instead of in the image.
+ARG PLAYWRIGHT_TIMEOUT=300
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/${USERNAME}/.cache/ms-playwright
+RUN echo "=== Playwright install: pre-flight diagnostics ===" \
+ && echo "Free memory (MB):" && free -m \
+ && echo "Disk space:" && df -h /home/${USERNAME} \
+ && echo "CPU cores: $(nproc)" \
+ && echo "Node version: $(node --version)" \
+ && echo "==================================================" \
+ && CI=true timeout ${PLAYWRIGHT_TIMEOUT} npx playwright install --with-deps chromium firefox webkit \
+    || { echo "ERROR: Playwright browser installation timed out after ${PLAYWRIGHT_TIMEOUT}s or failed."; \
+         echo "Check diagnostics above for memory/disk constraints."; \
+         echo "See Dockerfile comment for root-cause analysis (M-80)."; \
+         exit 1; } \
+ && echo "=== Playwright install: post-flight diagnostics ===" \
+ && echo "Installed browsers:" && ls -lh "${PLAYWRIGHT_BROWSERS_PATH}/" \
+ && du -sh "${PLAYWRIGHT_BROWSERS_PATH}" \
+ && echo "====================================================="
 
 ARG GO_VERSION=1.26.5
 RUN GO_ARCH="$(uname -m)" \
