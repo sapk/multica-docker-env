@@ -203,7 +203,7 @@ RUN DUCKDB_ARCH="$(uname -m)" \
  && curl -fsSL "https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/duckdb_cli-linux-${DUCKDB_ARCH}.gz" -o /tmp/duckdb.gz \
  && echo "${DUCKDB_SHA256}  /tmp/duckdb.gz" | sha256sum -c - \
  && gunzip /tmp/duckdb.gz \
- && mv duckdb "$HOME/.local/bin/duckdb" \
+ && mv /tmp/duckdb "$HOME/.local/bin/duckdb" \
  && chmod +x "$HOME/.local/bin/duckdb" \
  && "$HOME/.local/bin/duckdb" --version
 
