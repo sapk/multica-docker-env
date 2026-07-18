@@ -54,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       jq ripgrep \
       unzip \
       python3 \
+      make \
       gcc \
       libc6-dev \
       podman \
