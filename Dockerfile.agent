@@ -13,7 +13,7 @@ FROM ${MULTICA_IMAGE}:${MULTICA_TAG} AS multica
 # ---------------------------------------------------------------------------
 # base — multica CLI, Podman, nvm, pnpm, Playwright, entrypoint (no agent CLI)
 # ---------------------------------------------------------------------------
-FROM debian:stable-slim AS base
+FROM debian:trixie-slim AS base
 
 # nvm requires bash; default /bin/sh is dash (https://github.com/nvm-sh/nvm#installing-in-docker)
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -63,18 +63,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       slirp4netns \
       uidmap \
       libnss3 libnspr4 \
-      libatk1.0-0 libatk-bridge2.0-0 \
-      libcups2 libdrm2 \
+      libatk1.0-0t64 libatk-bridge2.0-0t64 \
+      libcups2t64 libdrm2 \
       libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
       libgbm1 libpango-1.0-0 libcairo2 \
-      libasound2 libatspi2.0-0 libxshmfence1 \
-      libgtk-3-0 libgdk-pixbuf-2.0-0 \
-      libglib2.0-0 libxml2 libxslt1.1 \
+      libasound2t64 libatspi2.0-0t64 libxshmfence1 \
+      libgtk-3-0t64 libgdk-pixbuf-2.0-0t64 \
+      libglib2.0-0t64 libxml2 libxslt1.1 \
       libjpeg62-turbo libpng16-16 libwebpdemux2 \
       libhyphen0 libenchant-2-2 libsecret-1-0 \
       libgles2 libevdev2 libdbus-glib-1-2 \
       libgstreamer-1.0-0 libgtk-4-1 libvulkan1 libgraphene-1.0-0 \
-      libicu72 libevent-2.1-7 \
+      libicu76 libevent-2.1-7 \
       fonts-liberation fonts-noto-color-emoji fonts-freefont-ttf \
   && rm -rf /var/lib/apt/lists/* \
   && touch /etc/subuid /etc/subgid \
