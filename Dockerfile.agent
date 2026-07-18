@@ -110,11 +110,12 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && mkdir -p "${HOME}/.local" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 
+# The install script places the pnpm/pnpx executables in ${PNPM_HOME}/bin
+# (PNPM_HOME itself is the data dir: global/, store/). Verify against that path.
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
 RUN mkdir -p "${PNPM_HOME}" \
  && curl -fsSL https://get.pnpm.io/install.sh | PNPM_HOME="${PNPM_HOME}" ENV="$HOME/.bashrc" SHELL="$(which bash)" bash - \
- && "${PNPM_HOME}/pnpm" --version
-RUN echo "export PNPM_HOME=\"${PNPM_HOME}\"" >> "${BASH_ENV}"
+ && "${PNPM_HOME}/bin/pnpm" --version
 
 # @playwright/test — provides the Playwright API/CLI for agents without the ~170MB+ browser binaries.
 # Browser binaries are NOT installed here; agents run `npx playwright install <browser>` at runtime.
@@ -235,7 +236,7 @@ RUN mkdir -p /home/${USERNAME}/.ssh \
 
 WORKDIR /workspaces
 
-ENV PATH="/home/${USERNAME}/.local/go/bin:${PNPM_HOME}:/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:/app:${PATH}"
+ENV PATH="/home/${USERNAME}/.local/go/bin:${PNPM_HOME}/bin:/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:/app:${PATH}"
 ENV DOCKER_HOST="unix:///tmp/podman.sock"
 ENV TESTCONTAINERS_HOST_OVERRIDE="localhost"
 ENV TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/tmp/podman.sock"
