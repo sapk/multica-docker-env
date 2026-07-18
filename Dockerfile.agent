@@ -73,6 +73,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libjpeg62-turbo libpng16-16 libwebpdemux2 \
       libhyphen0 libenchant-2-2 libsecret-1-0 \
       libgles2 libevdev2 libdbus-glib-1-2 \
+      libgstreamer-1.0-0 libgtk-4-1 libvulkan1 libgraphene-1.0-0 \
+      libicu72 libevent-2.1-7 \
       fonts-liberation fonts-noto-color-emoji fonts-freefont-ttf \
   && rm -rf /var/lib/apt/lists/* \
   && touch /etc/subuid /etc/subgid \
