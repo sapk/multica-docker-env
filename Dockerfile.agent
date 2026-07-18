@@ -293,7 +293,7 @@ FROM ${AGENT_BASE_IMAGE} AS kimi
 
 ARG USERNAME=agent
 
-RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | KIMI_INSTALL_DIR=/home/${USERNAME}/.local KIMI_NO_MODIFY_PATH=1 bash
 ENV MULTICA_KIMI_PATH=/home/${USERNAME}/.local/bin/kimi
 
 # ---------------------------------------------------------------------------
