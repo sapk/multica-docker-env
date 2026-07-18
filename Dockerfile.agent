@@ -147,7 +147,7 @@ RUN echo "=== Playwright install: pre-flight diagnostics ===" \
  && echo "CPU cores: $(nproc)" \
  && echo "Node version: $(node --version)" \
  && echo "==================================================" \
- && CI=true timeout ${PLAYWRIGHT_TIMEOUT} npx playwright install --with-deps chromium firefox webkit \
+ && CI=true timeout ${PLAYWRIGHT_TIMEOUT} npx playwright install chromium firefox webkit \
     || { echo "ERROR: Playwright browser installation timed out after ${PLAYWRIGHT_TIMEOUT}s or failed."; \
          echo "Check diagnostics above for memory/disk constraints."; \
          echo "See Dockerfile comment for root-cause analysis (M-80)."; \
