@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git-flow \
       openssh-client \
       jq ripgrep \
+      unzip \
       python3 \
       gcc \
       libc6-dev \
