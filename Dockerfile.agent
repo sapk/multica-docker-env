@@ -3,7 +3,7 @@
 #   make build-all
 #   make build-claude IMAGE=ghcr.io/org/multica-agent TAG=v1.0.0
 #
-# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode|codex|agy> -t <image> .
+# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode|codex|kimi|agy> -t <image> .
 
 ARG MULTICA_IMAGE=ghcr.io/multica-ai/multica-backend
 ARG MULTICA_TAG=latest
@@ -285,6 +285,16 @@ ARG USERNAME=agent
 
 RUN npm install -g @openai/codex
 ENV MULTICA_CODEX_PATH=/home/${USERNAME}/.local/node-active/codex
+
+# ---------------------------------------------------------------------------
+# kimi — Kimi Code CLI
+# ---------------------------------------------------------------------------
+FROM ${AGENT_BASE_IMAGE} AS kimi
+
+ARG USERNAME=agent
+
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
+ENV MULTICA_KIMI_PATH=/home/${USERNAME}/.local/bin/kimi
 
 # ---------------------------------------------------------------------------
 # agy — Antigravity CLI
