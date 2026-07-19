@@ -53,6 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       openssh-client \
       jq ripgrep \
       unzip \
+      procps \
       python3 \
       make \
       gcc \
@@ -123,13 +124,19 @@ RUN mkdir -p "${PNPM_HOME}" \
  && curl -fsSL https://get.pnpm.io/install.sh | PNPM_HOME="${PNPM_HOME}" ENV="$HOME/.bashrc" SHELL="$(which bash)" bash - \
  && "${PNPM_HOME}/bin/pnpm" --version
 
-# @playwright/test — provides the Playwright API/CLI for agents without the ~170MB+ browser binaries.
-# Browser binaries are NOT installed here; agents run `npx playwright install <browser>` at runtime.
-RUN npm install -g @playwright/test
+# @playwright/test — provides the Playwright API/CLI for agents.
+# The version is pinned because the hand-maintained system-library list above
+# is coupled to the browser builds a given Playwright version downloads. Bump
+# deliberately and re-check host deps (`npx playwright install-deps --dry-run`)
+# when upgrading. Browser binaries are installed in the next step.
+ARG PLAYWRIGHT_VERSION=1.61.1
+RUN npm install -g "@playwright/test@${PLAYWRIGHT_VERSION}"
 
 # Playwright browser binaries (Chromium, Firefox, WebKit).
 #
-# Root-cause analysis of the M-80 hang (3+ hours during browser extraction):
+# Working hypothesis for the M-80 hang (3+ hours during browser extraction).
+# This was NOT reproduced — in current builds all browsers extract in ~30s —
+# so treat it as a plausible explanation, not a confirmed diagnosis:
 #   Playwright downloads each browser as a large zip (Chromium ~280 MB, Firefox
 #   ~100 MB, WebKit ~100 MB) and extracts it via Node.js in a single process.
 #   In Docker BuildKit the RUN step runs inside a container with default memory
@@ -148,8 +155,9 @@ RUN npm install -g @playwright/test
 #   3. CI=true prevents any interactive prompts from blocking.
 #   4. PLAYWRIGHT_BROWSERS_PATH pins the install location for predictability.
 #
-# If the timeout fires, the build fails with exit code 124 and a clear error
-# message. To troubleshoot: check the CI logs for the pre-install diagnostics
+# If the timeout fires (or the install fails for any other reason), the error
+# handler below fails the RUN step with a clear message and the build stops.
+# To troubleshoot: check the CI logs for the pre-install diagnostics
 # (memory/disk), consider increasing builder memory, or install browsers at
 # runtime instead of in the image.
 ARG PLAYWRIGHT_TIMEOUT=300
@@ -163,7 +171,7 @@ RUN echo "=== Playwright install: pre-flight diagnostics ===" \
  && CI=true timeout ${PLAYWRIGHT_TIMEOUT} npx playwright install chromium firefox webkit \
     || { echo "ERROR: Playwright browser installation timed out after ${PLAYWRIGHT_TIMEOUT}s or failed."; \
          echo "Check diagnostics above for memory/disk constraints."; \
-         echo "See Dockerfile comment for root-cause analysis (M-80)."; \
+         echo "See Dockerfile comment for the M-80 hang hypothesis."; \
          exit 1; } \
  && echo "=== Playwright install: post-flight diagnostics ===" \
  && echo "Installed browsers:" && ls -lh "${PLAYWRIGHT_BROWSERS_PATH}/" \
