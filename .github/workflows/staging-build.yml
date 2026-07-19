@@ -111,13 +111,13 @@ jobs:
           timestamp=$(TZ=UTC git -C multica-src log -1 --format=%cd --date=format:%Y%m%d%H%M%S)
           short_sha="${sha:0:12}"
 
-          # Check if we have any tags
-          if git -C multica-src describe --tags --exact-match HEAD >/dev/null 2>&1; then
+          # Check if we have any version tags (vX.Y.Z format)
+          if git -C multica-src describe --tags --match 'v[0-9]*' --exact-match HEAD >/dev/null 2>&1; then
             # Exact tag match - use as-is
-            version=$(git -C multica-src describe --tags --exact-match HEAD)
-          elif git -C multica-src describe --tags --abbrev=0 HEAD >/dev/null 2>&1; then
-            # Has prior tag - create pseudo-version with bumped patch
-            base_tag=$(git -C multica-src describe --tags --abbrev=0 HEAD)
+            version=$(git -C multica-src describe --tags --match 'v[0-9]*' --exact-match HEAD)
+          elif git -C multica-src describe --tags --match 'v[0-9]*' --abbrev=0 HEAD >/dev/null 2>&1; then
+            # Has prior version tag - create pseudo-version with bumped patch
+            base_tag=$(git -C multica-src describe --tags --match 'v[0-9]*' --abbrev=0 HEAD)
             # Parse vX.Y.Z and bump Z
             if [[ "$base_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
               major="${BASH_REMATCH[1]}"
@@ -402,7 +402,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [claude, cursor, opencode, codex, agy]
+        variant: [claude, cursor, opencode, codex, kimi, agy]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
