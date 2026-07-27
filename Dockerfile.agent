@@ -58,6 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       make \
       gcc \
       libc6-dev \
+      tini \
       podman \
       passt \
       aardvark-dns \
@@ -117,6 +118,11 @@ RUN . "${NVM_DIR}/nvm.sh" \
  && mkdir -p "${HOME}/.local" \
  && ln -sfn "${NODE_BIN_DIR}" "${HOME}/.local/node-active"
 
+# Make the nvm-managed node/npm binaries available to subsequent RUN steps.
+# The OCI image format ignores the SHELL directive, so plain RUN uses /bin/sh
+# and does not source BASH_ENV; an explicit PATH is the portable fix.
+ENV PATH="/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:${PATH}"
+
 # The install script places the pnpm/pnpx executables in ${PNPM_HOME}/bin
 # (PNPM_HOME itself is the data dir: global/, store/). Verify against that path.
 ENV PNPM_HOME=/home/${USERNAME}/.local/share/pnpm
@@ -130,6 +136,8 @@ RUN mkdir -p "${PNPM_HOME}" \
 # deliberately and re-check host deps (`npx playwright install-deps --dry-run`)
 # when upgrading. Browser binaries are installed in the next step.
 ARG PLAYWRIGHT_VERSION=1.61.1
+# Run via an interactive bash login so the nvm/PATH setup in BASH_ENV is loaded;
+# the OCI image format ignores the SHELL directive, so plain RUN uses /bin/sh.
 RUN npm install -g "@playwright/test@${PLAYWRIGHT_VERSION}"
 
 # Playwright browser binaries (Chromium, Firefox, WebKit).
@@ -282,6 +290,14 @@ RUN mkdir -p /home/${USERNAME}/.ssh \
 WORKDIR /workspaces
 
 ENV PATH="/home/${USERNAME}/.local/go/bin:${PNPM_HOME}/bin:/home/${USERNAME}/.local/node-active:/home/${USERNAME}/.local/bin:/app:${PATH}"
+
+# The OCI image format ignores the SHELL directive, so plain RUN uses /bin/sh and
+# does not source BASH_ENV. Login shells also have /etc/profile reset PATH to a
+# minimal default. Append the full agent PATH to BASH_ENV so that `bash -lc ...`
+# (used by many agent CLIs and by tests) sees the same toolchain directories as
+# non-login processes.
+RUN echo 'export PATH="/home/'"${USERNAME}"'/.local/go/bin:/home/'"${USERNAME}"'/.local/share/pnpm/bin:/home/'"${USERNAME}"'/.local/node-active:/home/'"${USERNAME}"'/.local/bin:/app:${PATH}"' >> "${BASH_ENV}"
+
 ENV DOCKER_HOST="unix:///tmp/podman.sock"
 ENV TESTCONTAINERS_HOST_OVERRIDE="localhost"
 ENV TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/tmp/podman.sock"
@@ -291,7 +307,14 @@ ENV AARDVARK_BINARY="/usr/bin/aardvark-dns"
 COPY --chown=${USER_UID}:${USER_GID} docker/entrypoint-podman.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Use tini as PID 1 so orphaned agent descendants (fake agent CLIs, shell
+# subprocesses, MCP servers) are reaped instead of becoming zombies. Without a
+# proper init, the multica daemon itself is PID 1 and does not wait() on
+# arbitrary children; in the M-103 cancellation tests a re-parented sleep child
+# can outlive the shell and hold stdout/stderr open, or escape the process
+# group and break group-SIGKILL escalation. tini reaps zombies and keeps the
+# process group intact for the duration of the signal broadcast.
+ENTRYPOINT ["/usr/bin/tini", "--", "/app/entrypoint.sh"]
 CMD ["/app/multica", "daemon", "start", "--foreground"]
 
 # ---------------------------------------------------------------------------
