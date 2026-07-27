@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       curl \
       git \
       git-flow \
+      git-lfs \
       openssh-client \
       jq ripgrep \
       unzip \
