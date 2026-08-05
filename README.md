@@ -19,6 +19,8 @@ It also ships [`git-flow`](https://github.com/petervanderdoes/gitflow-avh) (the 
 
 The base image includes [DuckDB](https://duckdb.org/) CLI for querying CSV, Parquet, JSON, SQLite, and other data sources directly from the command line.
 
+The base image includes [`age`](https://github.com/FiloSottile/age) and [`sops`](https://github.com/getsops/sops) for encrypting/decrypting secrets files (e.g. `.sops.yaml`-managed YAML/JSON/ENV secrets), so agents can work with encrypted config without an extra install step.
+
 The base image pre-installs Playwright browser binaries (Chromium, Firefox, WebKit) with a 5-minute timeout. System libraries for headless browsing (X11, NSS, ATK, Pango, GBM, fonts) are also included. If the installation times out during build, the build fails fast with diagnostics (memory, disk space). To adjust the timeout, pass `--build-arg PLAYWRIGHT_TIMEOUT=600` (seconds). Browsers are installed to `$PLAYWRIGHT_BROWSERS_PATH` (`~/.cache/ms-playwright` by default).
 
 ## Pull images
@@ -104,6 +106,8 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
 | `GLAB_VERSION` | `1.108.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
 | `DUCKDB_VERSION` | `v1.5.4` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
+| `AGE_VERSION` | `v1.3.1` | [`age`](https://github.com/FiloSottile/age) release tag (file encryption tool) |
+| `SOPS_VERSION` | `v3.13.3` | [`sops`](https://github.com/getsops/sops) release tag (secrets file encryption CLI) |
 | `PLAYWRIGHT_TIMEOUT` | `300` | Seconds before Playwright browser install fails (timeout wrapper) |
 
 Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
