@@ -306,8 +306,12 @@ RUN SOPS_ARCH="$(uname -m)" \
  && "$HOME/.local/bin/sops" --version
 
 # mcp-proxy — stdio↔SSE/Streamable-HTTP bridge so any agent CLI can talk to remote MCP servers.
+# mcp-proxy 0.12.0 declares "mcp>=1.17.0" with no upper bound, so uv resolves the latest mcp
+# release. mcp 2.0.0 is a breaking rework that dropped mcp.server.lowlevel.server.request_ctx,
+# which mcp-proxy's proxy_server.py still imports — pin mcp below 2.0 until a mcp-proxy release
+# targets the new SDK.
 ARG MCP_PROXY_VERSION=v0.12.0
-RUN PATH="$HOME/.local/bin:$PATH" uv tool install "mcp-proxy==${MCP_PROXY_VERSION#v}" \
+RUN PATH="$HOME/.local/bin:$PATH" uv tool install "mcp-proxy==${MCP_PROXY_VERSION#v}" --with "mcp<2.0.0" \
  && PATH="$HOME/.local/bin:$PATH" mcp-proxy --version
 
 # spec-kit — GitHub's spec-driven development toolkit (specify CLI).
