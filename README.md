@@ -102,11 +102,15 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `GIT_USER_NAME` / `GIT_USER_EMAIL` | placeholder | Baked `.gitconfig` |
 | `NVM_VERSION` | `master` | nvm ref (`master` = rolling; pin e.g. `0.40.4`) |
 | `NODE_VERSION` | `node` | Node via nvm (`node` = latest; pin e.g. `24.15.0`) |
-| `UV_VERSION` | `0.11.29` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
+| `PLAYWRIGHT_VERSION` | `1.62.1` | [`@playwright/test`](https://playwright.dev/) version (coupled to the system-library list in `Dockerfile.agent`) |
+| `GO_VERSION` | `1.27.0` | [Go](https://go.dev/dl/) toolchain release |
+| `GOLANGCI_LINT_VERSION` | `v2.13.2` | [`golangci-lint`](https://github.com/golangci/golangci-lint) release tag (Go static analysis) |
+| `RTK_VERSION` | `v0.46.0` | [`rtk`](https://github.com/rtk-ai/rtk) release tag (token-optimised CLI proxy) |
+| `UV_VERSION` | `0.12.8` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
 | `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
-| `GLAB_VERSION` | `1.108.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
-| `DUCKDB_VERSION` | `v1.5.4` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
-| `AGE_VERSION` | `v1.3.1` | [`age`](https://github.com/FiloSottile/age) release tag (file encryption tool) |
+| `GLAB_VERSION` | `1.115.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
+| `DUCKDB_VERSION` | `v1.5.5` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
+| `AGE_VERSION` | `v1.3.2` | [`age`](https://github.com/FiloSottile/age) release tag (file encryption tool) |
 | `SOPS_VERSION` | `v3.13.3` | [`sops`](https://github.com/getsops/sops) release tag (secrets file encryption CLI) |
 | `PLAYWRIGHT_TIMEOUT` | `300` | Seconds before Playwright browser install fails (timeout wrapper) |
 
