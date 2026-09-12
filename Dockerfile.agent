@@ -137,7 +137,7 @@ RUN mkdir -p "${PNPM_HOME}" \
 # is coupled to the browser builds a given Playwright version downloads. Bump
 # deliberately and re-check host deps (`npx playwright install-deps --dry-run`)
 # when upgrading. Browser binaries are installed in the next step.
-ARG PLAYWRIGHT_VERSION=1.61.1
+ARG PLAYWRIGHT_VERSION=1.62.1
 # Run via an interactive bash login so the nvm/PATH setup in BASH_ENV is loaded;
 # the OCI image format ignores the SHELL directive, so plain RUN uses /bin/sh.
 RUN npm install -g "@playwright/test@${PLAYWRIGHT_VERSION}"
@@ -188,7 +188,7 @@ RUN echo "=== Playwright install: pre-flight diagnostics ===" \
  && du -sh "${PLAYWRIGHT_BROWSERS_PATH}" \
  && echo "====================================================="
 
-ARG GO_VERSION=1.26.5
+ARG GO_VERSION=1.27.0
 RUN GO_ARCH="$(uname -m)" \
  && case "${GO_ARCH}" in \
       x86_64)  GO_ARCH="amd64" ;; \
@@ -205,8 +205,8 @@ RUN GO_ARCH="$(uname -m)" \
 # Pin the version and verify the install script's SHA256 (rtk/uv pattern); the script
 # itself then downloads the matching release binary and checks its checksum internally.
 # Installs into $HOME/.local/bin, already on PATH (see ENV PATH below).
-ARG GOLANGCI_LINT_VERSION=v2.12.2
-ARG GOLANGCI_LINT_INSTALL_SHA256=d32d3534af96cfd59546a084d22b213e8a47541cada5013aa8a84c4fa2589905
+ARG GOLANGCI_LINT_VERSION=v2.13.2
+ARG GOLANGCI_LINT_INSTALL_SHA256=1022ddb4d87ed252350ed03fc9677e250a4ae95cc6bcd4658c2a20a8a23d390f
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_VERSION}/install.sh" -o /tmp/golangci-lint-install.sh \
  && echo "${GOLANGCI_LINT_INSTALL_SHA256}  /tmp/golangci-lint-install.sh" | sha256sum -c - \
@@ -214,7 +214,7 @@ RUN mkdir -p "$HOME/.local/bin" \
  && rm /tmp/golangci-lint-install.sh \
  && "$HOME/.local/bin/golangci-lint" version
 
-ARG RTK_VERSION=v0.43.0
+ARG RTK_VERSION=v0.46.0
 ARG RTK_INSTALL_SHA256=d6eb73a772903e13ff34ee1be8a8b24e896ba9a978f20d2279a08b4083ea6f77
 RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VERSION}/install.sh" -o /tmp/rtk-install.sh \
  && echo "${RTK_INSTALL_SHA256}  /tmp/rtk-install.sh" | sha256sum -c - \
@@ -228,8 +228,8 @@ RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VER
 # would require running as root and the install script's flat layout would put
 # the binary at /usr/local/uv (not on the default PATH) — $HOME/.local/bin/uv is
 # simpler and matches the rtk install pattern.
-ARG UV_VERSION=0.11.29
-ARG UV_INSTALL_SHA256=504a79fd2ed0dcd47e7f04f0792cfd0871f62e24a7fe40fa8ae0f563a369f2bd
+ARG UV_VERSION=0.12.8
+ARG UV_INSTALL_SHA256=9d360fe3d4a2c26157ecab7b44892acfe6b43e490c940ed0b29ab12e2085b1d3
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" -o /tmp/uv-install.sh \
  && echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - \
@@ -242,11 +242,11 @@ RUN mkdir -p "$HOME/.local/bin" \
 # glab — GitLab CLI, so agents can interact with GitLab (MRs, issues, CI, etc.) from the command line.
 # Downloads the prebuilt binary tarball from the official release assets and verifies its SHA256
 # against the published checksums. Installs into $HOME/.local/bin (already on PATH via ENV PATH below).
-ARG GLAB_VERSION=1.108.0
+ARG GLAB_VERSION=1.115.0
 RUN GLAB_ARCH="$(uname -m)" \
  && case "${GLAB_ARCH}" in \
-      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="cb3eb9d6b05eedef24a028b52354f12fb9a07ecfa0b5581eb161176585bc8213" ;; \
-      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="681031c6477dc7eb53b07a4641e2defc6795cf7ffb18ddc6cf8bdbc1211ed782" ;; \
+      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="3744c9f393fdf0aabd329e536aec3501ce780d5f7785eb2cbe0f1d3efa0f436b" ;; \
+      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="f5b2f790fd04949b9ed3f3853e2d4b8b088c8de04e8d1eafd165d000bc928af2" ;; \
       *) echo "Unsupported architecture: ${GLAB_ARCH}" && exit 1 ;; \
     esac \
  && curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_${GLAB_ARCH}.tar.gz" -o /tmp/glab.tar.gz \
@@ -259,11 +259,11 @@ RUN GLAB_ARCH="$(uname -m)" \
 
 # DuckDB — in-process SQL OLAP database CLI; useful for querying CSV/Parquet/SQLite/Postgres
 # and other data sources from the command line. Prebuilt binary from official GitHub releases.
-ARG DUCKDB_VERSION=v1.5.4
+ARG DUCKDB_VERSION=v1.5.5
 RUN DUCKDB_ARCH="$(uname -m)" \
  && case "${DUCKDB_ARCH}" in \
-      x86_64)  DUCKDB_ARCH="amd64"; DUCKDB_SHA256="c1d6db2294895c97849bee574b21eb462528857ccf8a23617dd3e0a05dd4b770" ;; \
-      aarch64) DUCKDB_ARCH="arm64"; DUCKDB_SHA256="32fea57520b1ae6caa291717d5f5d4d478fb6f8ed2d2c7054096a038fc6be833" ;; \
+      x86_64)  DUCKDB_ARCH="amd64"; DUCKDB_SHA256="c61f21485e6e41d3a0c28ce9904ea18346309cf427b4cf9479bc3564348dc885" ;; \
+      aarch64) DUCKDB_ARCH="arm64"; DUCKDB_SHA256="50c719e603a4e599d435e5321542458edc1cfc5f7eed65979fe9bc5ae4e3ba23" ;; \
       *) echo "Unsupported architecture: ${DUCKDB_ARCH}" && exit 1 ;; \
     esac \
  && curl -fsSL "https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/duckdb_cli-linux-${DUCKDB_ARCH}.gz" -o /tmp/duckdb.gz \
@@ -276,11 +276,11 @@ RUN DUCKDB_ARCH="$(uname -m)" \
 # age — simple, modern file encryption tool (small explicit keys, no config). Commonly
 # paired with sops below for encrypting secrets files. Prebuilt tarball from official
 # GitHub releases; only the age/age-keygen binaries are lifted out of the archive.
-ARG AGE_VERSION=v1.3.1
+ARG AGE_VERSION=v1.3.2
 RUN AGE_ARCH="$(uname -m)" \
  && case "${AGE_ARCH}" in \
-      x86_64)  AGE_ARCH="amd64"; AGE_SHA256="bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377" ;; \
-      aarch64) AGE_ARCH="arm64"; AGE_SHA256="c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a" ;; \
+      x86_64)  AGE_ARCH="amd64"; AGE_SHA256="cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10" ;; \
+      aarch64) AGE_ARCH="arm64"; AGE_SHA256="6b8dc4333c53a5a57c9e5834e3a48f92605d7154014cd07269ff3327db5d37f4" ;; \
       *) echo "Unsupported architecture: ${AGE_ARCH}" && exit 1 ;; \
     esac \
  && curl -fsSL "https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-${AGE_ARCH}.tar.gz" -o /tmp/age.tar.gz \
