@@ -131,6 +131,36 @@ delivery is restored.
 `rtk init -g --opencode` (run from `docker/entrypoint-podman.sh` when `ENABLE_RTK=true`) keys on
 `MULTICA_OPENCODE_PATH`, so it fires on both images and writes the plugin to
 `~/.config/opencode/plugins/rtk.ts`, which 2.x documents as an auto-loaded global plugin directory.
+
+`ENABLE_RTK` has three states, and only an explicit off disables:
+
+| `ENABLE_RTK` | effect |
+| --- | --- |
+| `true` | initialise the variant the image ships (detected from `MULTICA_*_PATH`) |
+| `false`, `0`, `no`, `off` | remove rtk from every variant (see the table below) |
+| unset, or any other value | no-op, reported in the boot log |
+
+`ENABLE_RTK` is not set by `Dockerfile.agent`, so an image that never configures it is a no-op —
+hand-running `rtk init` inside a live container is not undone by a later restart. A typo such as
+`True` or `1` is logged, not silently treated as "on".
+
+The disable path deliberately does **not** key on `MULTICA_*_PATH`: removal keyed on the same
+detection as the install is conditional on a variable a runtime may not carry (the Multica daemon
+strips `MULTICA_*_PATH` from the agent shell, though it is present in the entrypoint's own
+environment), and a stale or absent value would silently restore the old one-way behaviour. Each
+call is idempotent and exits 0 on a clean image, so a clean boot costs ~2 ms per variant.
+
+Coverage of the disable path, per variant — rtk's own uninstall does not reach all of them:
+
+| variant | enable | disable | note |
+| --- | --- | --- | --- |
+| claude | `rtk init -g` | full | |
+| opencode | `rtk init -g --opencode` | full | removes `~/.config/opencode/plugins/rtk.ts` |
+| codex | `rtk init -g --codex` | full | |
+| cursor | `rtk init -g --agent cursor` | **partial** | empties the `preToolUse` hook array, but leaves the `.claude/RTK.md` / `.claude/CLAUDE.md` awareness text and drops a `hooks.json.bak` |
+| antigravity | `rtk init --agent antigravity` | **by hand** | rtk refuses (`--uninstall` without `-g` exits 1; `-g` only sweeps `~/.claude`), so the entrypoint `rm`s the `.agents/rules/antigravity-rtk-rules.md` it wrote |
+
+`--uninstall` is present in `v0.46.0` (the pinned version) and `v0.50.0`.
 The generated plugin type-imports `@opencode-ai/plugin`; that is a type-only import, so it is erased
 at compile time and is not itself a risk. What is **unverified** is whether the rewrite hook actually
 fires on 2.x — a 2.x server here reported zero loaded plugins under every configuration tried.
