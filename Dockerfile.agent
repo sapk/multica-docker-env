@@ -137,7 +137,7 @@ RUN mkdir -p "${PNPM_HOME}" \
 # is coupled to the browser builds a given Playwright version downloads. Bump
 # deliberately and re-check host deps (`npx playwright install-deps --dry-run`)
 # when upgrading. Browser binaries are installed in the next step.
-ARG PLAYWRIGHT_VERSION=1.62.1
+ARG PLAYWRIGHT_VERSION=1.63.0
 # Run via an interactive bash login so the nvm/PATH setup in BASH_ENV is loaded;
 # the OCI image format ignores the SHELL directive, so plain RUN uses /bin/sh.
 RUN npm install -g "@playwright/test@${PLAYWRIGHT_VERSION}"
@@ -188,7 +188,7 @@ RUN echo "=== Playwright install: pre-flight diagnostics ===" \
  && du -sh "${PLAYWRIGHT_BROWSERS_PATH}" \
  && echo "====================================================="
 
-ARG GO_VERSION=1.27.0
+ARG GO_VERSION=1.27.1
 RUN GO_ARCH="$(uname -m)" \
  && case "${GO_ARCH}" in \
       x86_64)  GO_ARCH="amd64" ;; \
@@ -205,7 +205,7 @@ RUN GO_ARCH="$(uname -m)" \
 # Pin the version and verify the install script's SHA256 (rtk/uv pattern); the script
 # itself then downloads the matching release binary and checks its checksum internally.
 # Installs into $HOME/.local/bin, already on PATH (see ENV PATH below).
-ARG GOLANGCI_LINT_VERSION=v2.13.2
+ARG GOLANGCI_LINT_VERSION=v2.14.0
 ARG GOLANGCI_LINT_INSTALL_SHA256=1022ddb4d87ed252350ed03fc9677e250a4ae95cc6bcd4658c2a20a8a23d390f
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_VERSION}/install.sh" -o /tmp/golangci-lint-install.sh \
@@ -214,7 +214,7 @@ RUN mkdir -p "$HOME/.local/bin" \
  && rm /tmp/golangci-lint-install.sh \
  && "$HOME/.local/bin/golangci-lint" version
 
-ARG RTK_VERSION=v0.46.0
+ARG RTK_VERSION=v0.50.0
 ARG RTK_INSTALL_SHA256=d6eb73a772903e13ff34ee1be8a8b24e896ba9a978f20d2279a08b4083ea6f77
 RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VERSION}/install.sh" -o /tmp/rtk-install.sh \
  && echo "${RTK_INSTALL_SHA256}  /tmp/rtk-install.sh" | sha256sum -c - \
@@ -228,8 +228,8 @@ RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VER
 # would require running as root and the install script's flat layout would put
 # the binary at /usr/local/uv (not on the default PATH) — $HOME/.local/bin/uv is
 # simpler and matches the rtk install pattern.
-ARG UV_VERSION=0.12.8
-ARG UV_INSTALL_SHA256=9d360fe3d4a2c26157ecab7b44892acfe6b43e490c940ed0b29ab12e2085b1d3
+ARG UV_VERSION=0.12.19
+ARG UV_INSTALL_SHA256=61b349611f1b6e1ba33645f30c36da5287df2609dd7af8605d96a031435eb35b
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" -o /tmp/uv-install.sh \
  && echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - \
@@ -242,11 +242,11 @@ RUN mkdir -p "$HOME/.local/bin" \
 # glab — GitLab CLI, so agents can interact with GitLab (MRs, issues, CI, etc.) from the command line.
 # Downloads the prebuilt binary tarball from the official release assets and verifies its SHA256
 # against the published checksums. Installs into $HOME/.local/bin (already on PATH via ENV PATH below).
-ARG GLAB_VERSION=1.115.0
+ARG GLAB_VERSION=1.119.0
 RUN GLAB_ARCH="$(uname -m)" \
  && case "${GLAB_ARCH}" in \
-      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="3744c9f393fdf0aabd329e536aec3501ce780d5f7785eb2cbe0f1d3efa0f436b" ;; \
-      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="f5b2f790fd04949b9ed3f3853e2d4b8b088c8de04e8d1eafd165d000bc928af2" ;; \
+      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="4d83375d202ffa634eaf627fd9272b610fa599f20f5b711f55d770583eca2b84" ;; \
+      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="8540c4afbe63c4da023c15bfce15f2f1ef9cc1afe4a6fd6812c426b9eeab073b" ;; \
       *) echo "Unsupported architecture: ${GLAB_ARCH}" && exit 1 ;; \
     esac \
  && curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_${GLAB_ARCH}.tar.gz" -o /tmp/glab.tar.gz \
