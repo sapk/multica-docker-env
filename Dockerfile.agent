@@ -3,7 +3,7 @@
 #   make build-all
 #   make build-claude IMAGE=ghcr.io/org/multica-agent TAG=v1.0.0
 #
-# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode|codex|kimi|agy> -t <image> .
+# Or: docker build -f Dockerfile.agent --target <claude|cursor|opencode|opencode-v2|codex|kimi|agy> -t <image> .
 
 ARG MULTICA_IMAGE=ghcr.io/multica-ai/multica-backend
 ARG MULTICA_TAG=latest
@@ -392,13 +392,33 @@ FROM ${AGENT_BASE_IMAGE} AS opencode
 ARG USERNAME=agent
 ARG OPENCODE_VERSION=1.18.32
 
+# The two guards below are deliberately separate.
+#
+#   shape — the daemon runs `parseSemver` over this string, so it has to be
+#           legible as a version at all, and for this target it must not read as
+#           2.x. This is the contract guard.
+#   exact — the report must equal the pin. Without it, OPENCODE_VERSION is only
+#           a suggestion: an installer that resolved something else would still
+#           pass the shape check and build a green image lying about its version.
+#
+# `grep` reads a file rather than a pipe on purpose. `grep -q` exits on first
+# match and closes the pipe, so `printf … | grep -q` can leave `printf` on
+# SIGPIPE (status 141) and, under `SHELL … -o pipefail`, report the whole
+# pipeline as failed. A 20-byte string never trips it, but there is no reason to
+# depend on that.
 RUN curl -fsSL https://opencode.ai/install | bash -s -- --version "${OPENCODE_VERSION#v}" \
   && OPENCODE_REPORT="$("$HOME/.opencode/bin/opencode" --version)" \
+  && printf '%s\n' "${OPENCODE_REPORT}" > /tmp/opencode-version \
   && echo "opencode --version: ${OPENCODE_REPORT}" \
-  && if ! printf '%s\n' "${OPENCODE_REPORT}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
-       echo "ERROR: the opencode image must report a bare 1.x semver."; \
-       echo "The daemon picks the CLI argv from this string (opencodeUsesV2Contract),"; \
-       echo "so a 2.x shape here would silently switch this image to the 2.x contract. Refusing to build."; \
+  && if ! grep -qxE '[0-9]+\.[0-9]+\.[0-9]+' /tmp/opencode-version; then \
+       echo "ERROR: this image must report a bare semver, got '${OPENCODE_REPORT}'."; \
+       echo "The daemon picks the CLI argv from this string (opencodeUsesV2Contract);"; \
+       echo "a 2.x shape here would silently switch this image to the 2.x contract. Refusing to build."; \
+       exit 1; \
+     fi \
+  && if [ "${OPENCODE_REPORT}" != "${OPENCODE_VERSION#v}" ]; then \
+       echo "ERROR: pinned to OPENCODE_VERSION=${OPENCODE_VERSION} but the binary reports"; \
+       echo "'${OPENCODE_REPORT}'. The pin is what holds this image on 1.x. Refusing to build."; \
        exit 1; \
      fi
 ENV MULTICA_OPENCODE_PATH=/home/${USERNAME}/.opencode/bin/opencode
@@ -419,23 +439,38 @@ RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/o
 # the `--version` probe below is what turns that into a build failure.
 #
 # The binary lands in the nvm bin dir (same as the `codex` target), which
-# ~/.local/node-active symlinks to.
+# ~/.local/node-active symlinks to. The probe below uses that same explicit path
+# rather than `opencode` off PATH, so it tests the binary this image actually
+# publishes via MULTICA_OPENCODE_PATH. If the npm prefix ever diverged from
+# node-active, this fails the build instead of passing on some other binary.
 FROM ${AGENT_BASE_IMAGE} AS opencode-v2
 
 ARG USERNAME=agent
 ARG OPENCODE_V2_VERSION=2.0.18
 
+# Same two guards as the v1 target: the 2.x version shape (the contract guard),
+# then the exact pin. See the comment there for why the shape and the pin are
+# checked separately, and why grep reads a file rather than a pipe.
 RUN npm install -g "@opencode/cli@${OPENCODE_V2_VERSION}" \
-  && OPENCODE_REPORT="$(opencode --version)" \
+  && OPENCODE_REPORT="$("$HOME/.local/node-active/opencode" --version)" \
+  && printf '%s\n' "${OPENCODE_REPORT}" > /tmp/opencode-version \
   && echo "opencode --version: ${OPENCODE_REPORT}" \
-  && if ! printf '%s\n' "${OPENCODE_REPORT}" | grep -qE '^opencode v?2\.'; then \
-       echo "ERROR: the opencode-v2 image must report the 2.x version shape."; \
-       echo "The daemon picks the CLI argv from this string (opencodeUsesV2Contract),"; \
-       echo "so a 1.x shape here makes every task exit 1 immediately. Refusing to build."; \
+  && if ! grep -qxE 'opencode v2\.[0-9]+(\.[0-9]+)?' /tmp/opencode-version; then \
+       echo "ERROR: this image must report the 2.x version shape, got '${OPENCODE_REPORT}'."; \
+       echo "The daemon picks the CLI argv from this string (opencodeUsesV2Contract);"; \
+       echo "a 1.x shape here makes every task exit 1 immediately. Refusing to build."; \
+       exit 1; \
+     fi \
+  && if [ "${OPENCODE_REPORT}" != "opencode v${OPENCODE_V2_VERSION}" ]; then \
+       echo "ERROR: pinned to OPENCODE_V2_VERSION=${OPENCODE_V2_VERSION} but the binary reports"; \
+       echo "'${OPENCODE_REPORT}'. Refusing to build."; \
        exit 1; \
      fi
 ENV MULTICA_OPENCODE_PATH=/home/${USERNAME}/.local/node-active/opencode
 
+# 2.x keeps its database and logs here (verified: it creates
+# ~/.local/share/opencode/opencode.db{,-wal,-shm} and log/opencode.log on first
+# run), and reads config from ~/.config/opencode. Same two dirs as the v1 target.
 RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/opencode
 
 # ---------------------------------------------------------------------------

@@ -105,11 +105,13 @@ major bump would change the contract every task runs under with no commit and no
 `opencode-v2` build additionally asserts the `opencode v2.x` version shape and fails the build
 otherwise.
 
-Verify either image before rolling it out:
+Verify either image before rolling it out. Use the absolute path: on the v1 image `opencode` is
+**not** on `PATH` (the installer only appends it to `~/.bashrc`), so a bare `--entrypoint opencode`
+fails there while succeeding on v2.
 
 ```bash
-docker run --rm --entrypoint opencode ghcr.io/sapk/multica-agent-opencode:latest --version        # 1.18.32
-docker run --rm --entrypoint opencode ghcr.io/sapk/multica-agent-opencode-v2:latest --version    # opencode v2.0.18
+docker run --rm --entrypoint /home/agent/.opencode/bin/opencode ghcr.io/sapk/multica-agent-opencode:latest --version       # 1.18.32
+docker run --rm --entrypoint /home/agent/.local/node-active/opencode ghcr.io/sapk/multica-agent-opencode-v2:latest --version  # opencode v2.0.18
 ```
 
 ### 2.x cannot use Multica-managed MCP servers
@@ -128,9 +130,10 @@ delivery is restored.
 
 `rtk init -g --opencode` (run from `docker/entrypoint-podman.sh` when `ENABLE_RTK=true`) keys on
 `MULTICA_OPENCODE_PATH`, so it fires on both images and writes the plugin to
-`~/.config/opencode/plugins/rtk.ts` — a path 2.x also discovers. Note that the generated plugin
-type-imports `@opencode-ai/plugin`, the 1.x package name; 2.x renamed it `@opencode/plugin`. The
-import is type-only so it is erased at compile time, but the rewrite hook firing on 2.x is unverified.
+`~/.config/opencode/plugins/rtk.ts`, which 2.x documents as an auto-loaded global plugin directory.
+The generated plugin type-imports `@opencode-ai/plugin`; that is a type-only import, so it is erased
+at compile time and is not itself a risk. What is **unverified** is whether the rewrite hook actually
+fires on 2.x — a 2.x server here reported zero loaded plugins under every configuration tried.
 
 ## Makefile variables
 
@@ -163,7 +166,10 @@ import is type-only so it is erased at compile time, but the rewrite hook firing
 | `SOPS_VERSION` | `v3.13.3` | [`sops`](https://github.com/getsops/sops) release tag (secrets file encryption CLI) |
 | `PLAYWRIGHT_TIMEOUT` | `300` | Seconds before Playwright browser install fails (timeout wrapper) |
 
-Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
+These are `docker build --build-arg` arguments. **`make` does not forward them** — the Makefile's
+`VARIANT_ARGS` passes only `MULTICA_IMAGE`, `MULTICA_TAG`, and `AGENT_BASE_IMAGE`, so
+`make build-opencode-v2 OPENCODE_V2_VERSION=…` is a silent no-op that builds the default. Bump a pin
+with `docker build`, or add it to `VARIANT_ARGS` in the `Makefile`.
 
 ## CI
 
