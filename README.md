@@ -6,7 +6,8 @@ Docker images for [Multica](https://github.com/multica/multica) agent daemons �
 |-------|---------------------------|-----------|
 | `ghcr.io/sapk/multica-agent-claude` | `claude` | [Claude Code](https://claude.ai/code) |
 | `ghcr.io/sapk/multica-agent-cursor` | `cursor` | [Cursor CLI](https://cursor.com) |
-| `ghcr.io/sapk/multica-agent-opencode` | `opencode` | [OpenCode](https://opencode.ai) |
+| `ghcr.io/sapk/multica-agent-opencode` | `opencode` | [OpenCode](https://opencode.ai) 1.x |
+| `ghcr.io/sapk/multica-agent-opencode-v2` | `opencode-v2` | [OpenCode](https://opencode.ai) 2.x — see the caveat below |
 | `ghcr.io/sapk/multica-agent-codex` | `codex` | [OpenAI Codex CLI](https://developers.openai.com/codex/cli) |
 | `ghcr.io/sapk/multica-agent-kimi` | `kimi` | [Kimi Code CLI](https://github.com/MoonshotAI/kimi-code) |
 | `ghcr.io/sapk/multica-agent-agy` | `agy` | [Antigravity CLI](https://antigravity.google/docs/cli-getting-started) |
@@ -31,6 +32,7 @@ Published by CI to [GitHub Container Registry](https://github.com/sapk?tab=packa
 docker pull ghcr.io/sapk/multica-agent-claude:latest
 docker pull ghcr.io/sapk/multica-agent-cursor:latest
 docker pull ghcr.io/sapk/multica-agent-opencode:latest
+docker pull ghcr.io/sapk/multica-agent-opencode-v2:latest
 docker pull ghcr.io/sapk/multica-agent-codex:latest
 docker pull ghcr.io/sapk/multica-agent-kimi:latest
 docker pull ghcr.io/sapk/multica-agent-agy:latest
@@ -85,6 +87,54 @@ Pin `MULTICA_TAG` to the same release as your Multica backend so the daemon CLI 
 docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 ```
 
+## OpenCode: two variants, 1.x and 2.x
+
+`multica-agent-opencode` is **OpenCode 1.x** and stays the default. `multica-agent-opencode-v2` is
+**OpenCode 2.x**. They are separate images because the two lines are genuinely independent:
+
+| | Install channel | Binary lands in |
+|---|---|---|
+| `opencode` (1.x) | `curl -fsSL https://opencode.ai/install` | `~/.opencode/bin/opencode` |
+| `opencode-v2` (2.x) | npm `@opencode/cli` | `~/.local/node-active/opencode` |
+
+The installer script's `releases/latest` is the 1.x channel, and 2.x publishes no release assets at
+all — so 2.x is only reachable from npm. Both versions are **pinned** via `OPENCODE_VERSION` and
+`OPENCODE_V2_VERSION` rather than floating. That matters more than usual here: the daemon chooses
+the CLI's argv from the binary's `--version` string, not from the image name, so a silent upstream
+major bump would change the contract every task runs under with no commit and no review. The
+`opencode-v2` build additionally asserts the `opencode v2.x` version shape and fails the build
+otherwise.
+
+Verify either image before rolling it out. Use the absolute path: on the v1 image `opencode` is
+**not** on `PATH` (the installer only appends it to `~/.bashrc`), so a bare `--entrypoint opencode`
+fails there while succeeding on v2.
+
+```bash
+docker run --rm --entrypoint /home/agent/.opencode/bin/opencode ghcr.io/sapk/multica-agent-opencode:latest --version       # 1.18.32
+docker run --rm --entrypoint /home/agent/.local/node-active/opencode ghcr.io/sapk/multica-agent-opencode-v2:latest --version  # opencode v2.0.18
+```
+
+### 2.x cannot use Multica-managed MCP servers
+
+**Use the v1 image for any runtime that relies on Multica-managed MCP servers.** OpenCode 2.x honours
+no environment-based config channel — it only reads `<workdir>/opencode.json`, and its MCP entries
+carry bearer headers and OAuth secrets that the agent's own commits would capture. Rather than write
+those secrets to disk, the daemon refuses runs that carry MCP config on a 2.x runtime
+(`ErrOpenCodeV2MCPUnsupported`, `server/pkg/agent/opencode_v2.go`), naming every MCP source in the
+error.
+
+Pick `opencode-v2` only for single-agent setups that do not use Multica-managed MCP, until MCP
+delivery is restored.
+
+### RTK on 2.x
+
+`rtk init -g --opencode` (run from `docker/entrypoint-podman.sh` when `ENABLE_RTK=true`) keys on
+`MULTICA_OPENCODE_PATH`, so it fires on both images and writes the plugin to
+`~/.config/opencode/plugins/rtk.ts`, which 2.x documents as an auto-loaded global plugin directory.
+The generated plugin type-imports `@opencode-ai/plugin`; that is a type-only import, so it is erased
+at compile time and is not itself a risk. What is **unverified** is whether the rewrite hook actually
+fires on 2.x — a 2.x server here reported zero loaded plugins under every configuration tried.
+
 ## Makefile variables
 
 | Variable | Default | Purpose |
@@ -102,6 +152,8 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `GIT_USER_NAME` / `GIT_USER_EMAIL` | placeholder | Baked `.gitconfig` |
 | `NVM_VERSION` | `master` | nvm ref (`master` = rolling; pin e.g. `0.40.4`) |
 | `NODE_VERSION` | `node` | Node via nvm (`node` = latest; pin e.g. `24.15.0`) |
+| `OPENCODE_VERSION` | `1.18.32` | OpenCode 1.x release, for the `opencode` target |
+| `OPENCODE_V2_VERSION` | `2.0.18` | [`@opencode/cli`](https://www.npmjs.com/package/@opencode/cli) version, for the `opencode-v2` target |
 | `PLAYWRIGHT_VERSION` | `1.62.1` | [`@playwright/test`](https://playwright.dev/) version (coupled to the system-library list in `Dockerfile.agent`) |
 | `GO_VERSION` | `1.27.0` | [Go](https://go.dev/dl/) toolchain release |
 | `GOLANGCI_LINT_VERSION` | `v2.13.2` | [`golangci-lint`](https://github.com/golangci/golangci-lint) release tag (Go static analysis) |
@@ -114,7 +166,10 @@ docker build -f Dockerfile.agent --target base -t multica-agent-base:local .
 | `SOPS_VERSION` | `v3.13.3` | [`sops`](https://github.com/getsops/sops) release tag (secrets file encryption CLI) |
 | `PLAYWRIGHT_TIMEOUT` | `300` | Seconds before Playwright browser install fails (timeout wrapper) |
 
-Pass through `docker build --build-arg` or extend the `Makefile` `BUILD_ARGS` as needed.
+These are `docker build --build-arg` arguments. **`make` does not forward them** — the Makefile's
+`VARIANT_ARGS` passes only `MULTICA_IMAGE`, `MULTICA_TAG`, and `AGENT_BASE_IMAGE`, so
+`make build-opencode-v2 OPENCODE_V2_VERSION=…` is a silent no-op that builds the default. Bump a pin
+with `docker build`, or add it to `VARIANT_ARGS` in the `Makefile`.
 
 ## CI
 
