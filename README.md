@@ -131,6 +131,11 @@ delivery is restored.
 `rtk init -g --opencode` (run from `docker/entrypoint-podman.sh` when `ENABLE_RTK=true`) keys on
 `MULTICA_OPENCODE_PATH`, so it fires on both images and writes the plugin to
 `~/.config/opencode/plugins/rtk.ts`, which 2.x documents as an auto-loaded global plugin directory.
+`ENABLE_RTK` is two-way: any value other than the exact string `true` — `false`, unset, `True`, `1` —
+runs the same command with `--uninstall`, so clearing the flag removes the artifacts a previous boot
+installed instead of leaving them in place. `--uninstall` is idempotent (it reports "nothing to
+remove" and exits 0 when already clean) and is present in `v0.46.0` (the pinned version) and
+`v0.50.0`.
 The generated plugin type-imports `@opencode-ai/plugin`; that is a type-only import, so it is erased
 at compile time and is not itself a risk. What is **unverified** is whether the rewrite hook actually
 fires on 2.x — a 2.x server here reported zero loaded plugins under every configuration tried.
