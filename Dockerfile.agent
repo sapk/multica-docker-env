@@ -376,14 +376,65 @@ RUN curl https://cursor.com/install -fsS | bash
 ENV MULTICA_CURSOR_PATH=/home/${USERNAME}/.local/bin/cursor-agent
 
 # ---------------------------------------------------------------------------
-# opencode — OpenCode CLI
+# opencode — OpenCode CLI, v1 line
 # ---------------------------------------------------------------------------
+# The installer resolves `releases/latest`, which is still the 1.x channel, so this
+# target tracks v1. The version is pinned anyway: if upstream ever repoints
+# `releases/latest` at 2.x, an unpinned build would silently change major version
+# with no commit and no review. The daemon picks its argv from the binary's
+# `--version` string (server/pkg/agent/opencode_v2.go), so that swap is not
+# something an image rebuild should be able to do behind our backs.
+#
+# For the 2.x line see the `opencode-v2` target below — the two are published as
+# separate images and the v1 image stays the default.
 FROM ${AGENT_BASE_IMAGE} AS opencode
 
 ARG USERNAME=agent
+ARG OPENCODE_VERSION=1.18.32
 
-RUN curl -fsSL https://opencode.ai/install | bash
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --version "${OPENCODE_VERSION#v}" \
+  && OPENCODE_REPORT="$("$HOME/.opencode/bin/opencode" --version)" \
+  && echo "opencode --version: ${OPENCODE_REPORT}" \
+  && if ! printf '%s\n' "${OPENCODE_REPORT}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
+       echo "ERROR: the opencode image must report a bare 1.x semver."; \
+       echo "The daemon picks the CLI argv from this string (opencodeUsesV2Contract),"; \
+       echo "so a 2.x shape here would silently switch this image to the 2.x contract. Refusing to build."; \
+       exit 1; \
+     fi
 ENV MULTICA_OPENCODE_PATH=/home/${USERNAME}/.opencode/bin/opencode
+
+RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/opencode
+
+# ---------------------------------------------------------------------------
+# opencode-v2 — OpenCode CLI, v2 line
+# ---------------------------------------------------------------------------
+# 2.x is not published on the install script's channel: `releases/latest` is 1.x
+# and v2 has no release assets at all, only an npm package. So the CLI comes from
+# npm `@opencode/cli`, pinned like the v1 target above.
+#
+# The package's `postinstall` copies the right platform binary out of an
+# optionalDependency into bin/, and its bin/ shim is a stub that exits 1 with
+# "postinstall script was not run" when it has not. npm only warns when it
+# declines to run that script, so a silently non-functional image is possible;
+# the `--version` probe below is what turns that into a build failure.
+#
+# The binary lands in the nvm bin dir (same as the `codex` target), which
+# ~/.local/node-active symlinks to.
+FROM ${AGENT_BASE_IMAGE} AS opencode-v2
+
+ARG USERNAME=agent
+ARG OPENCODE_V2_VERSION=2.0.18
+
+RUN npm install -g "@opencode/cli@${OPENCODE_V2_VERSION}" \
+  && OPENCODE_REPORT="$(opencode --version)" \
+  && echo "opencode --version: ${OPENCODE_REPORT}" \
+  && if ! printf '%s\n' "${OPENCODE_REPORT}" | grep -qE '^opencode v?2\.'; then \
+       echo "ERROR: the opencode-v2 image must report the 2.x version shape."; \
+       echo "The daemon picks the CLI argv from this string (opencodeUsesV2Contract),"; \
+       echo "so a 1.x shape here makes every task exit 1 immediately. Refusing to build."; \
+       exit 1; \
+     fi
+ENV MULTICA_OPENCODE_PATH=/home/${USERNAME}/.local/node-active/opencode
 
 RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/opencode
 

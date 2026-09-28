@@ -25,10 +25,10 @@ export BUILDKIT_PROGRESS := plain
 
 DOCKERFILE := Dockerfile.agent
 
-.PHONY: build-all build-base build-claude build-cursor build-opencode build-codex build-kimi build-agy
-.PHONY: tag-claude tag-cursor tag-opencode tag-codex tag-kimi tag-agy
+.PHONY: build-all build-base build-claude build-cursor build-opencode build-opencode-v2 build-codex build-kimi build-agy
+.PHONY: tag-claude tag-cursor tag-opencode tag-opencode-v2 tag-codex tag-kimi tag-agy
 
-build-all: build-base build-claude build-cursor build-opencode build-codex build-kimi build-agy
+build-all: build-base build-claude build-cursor build-opencode build-opencode-v2 build-codex build-kimi build-agy
 
 build-base:
 	docker build -f $(DOCKERFILE) --target base \
@@ -54,6 +54,9 @@ build-cursor: build-base
 build-opencode: build-base
 	docker build -f $(DOCKERFILE) --target opencode $(VARIANT_ARGS) -t $(IMAGE)-opencode:$(TAG) .
 
+build-opencode-v2: build-base
+	docker build -f $(DOCKERFILE) --target opencode-v2 $(VARIANT_ARGS) -t $(IMAGE)-opencode-v2:$(TAG) .
+
 build-codex: build-base
 	docker build -f $(DOCKERFILE) --target codex $(VARIANT_ARGS) -t $(IMAGE)-codex:$(TAG) .
 
@@ -67,6 +70,7 @@ build-agy: build-base
 tag-claude: build-claude
 tag-cursor: build-cursor
 tag-opencode: build-opencode
+tag-opencode-v2: build-opencode-v2
 tag-codex: build-codex
 tag-kimi: build-kimi
 tag-agy: build-agy
