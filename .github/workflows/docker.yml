@@ -95,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [claude, cursor, opencode, opencode-v2, codex, agy]
+        variant: [claude, opencode, opencode-v2, codex]
 #        variant: [claude, cursor, opencode, opencode-v2, codex, kimi, agy]
     steps:
       - name: Checkout
