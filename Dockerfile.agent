@@ -137,7 +137,7 @@ RUN mkdir -p "${PNPM_HOME}" \
 # is coupled to the browser builds a given Playwright version downloads. Bump
 # deliberately and re-check host deps (`npx playwright install-deps --dry-run`)
 # when upgrading. Browser binaries are installed in the next step.
-ARG PLAYWRIGHT_VERSION=1.63.0
+ARG PLAYWRIGHT_VERSION=1.65.1
 # Run via an interactive bash login so the nvm/PATH setup in BASH_ENV is loaded;
 # the OCI image format ignores the SHELL directive, so plain RUN uses /bin/sh.
 RUN npm install -g "@playwright/test@${PLAYWRIGHT_VERSION}"
@@ -188,7 +188,7 @@ RUN echo "=== Playwright install: pre-flight diagnostics ===" \
  && du -sh "${PLAYWRIGHT_BROWSERS_PATH}" \
  && echo "====================================================="
 
-ARG GO_VERSION=1.27.1
+ARG GO_VERSION=1.27.4
 RUN GO_ARCH="$(uname -m)" \
  && case "${GO_ARCH}" in \
       x86_64)  GO_ARCH="amd64" ;; \
@@ -205,7 +205,7 @@ RUN GO_ARCH="$(uname -m)" \
 # Pin the version and verify the install script's SHA256 (rtk/uv pattern); the script
 # itself then downloads the matching release binary and checks its checksum internally.
 # Installs into $HOME/.local/bin, already on PATH (see ENV PATH below).
-ARG GOLANGCI_LINT_VERSION=v2.14.0
+ARG GOLANGCI_LINT_VERSION=v2.15.0
 ARG GOLANGCI_LINT_INSTALL_SHA256=1022ddb4d87ed252350ed03fc9677e250a4ae95cc6bcd4658c2a20a8a23d390f
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_VERSION}/install.sh" -o /tmp/golangci-lint-install.sh \
@@ -214,8 +214,12 @@ RUN mkdir -p "$HOME/.local/bin" \
  && rm /tmp/golangci-lint-install.sh \
  && "$HOME/.local/bin/golangci-lint" version
 
-ARG RTK_VERSION=v0.50.0
-ARG RTK_INSTALL_SHA256=d6eb73a772903e13ff34ee1be8a8b24e896ba9a978f20d2279a08b4083ea6f77
+# rtk — held at v1.1.0: the v1.2.0/v1.2.1 x86_64 release binaries carry unguarded AVX2/VEX
+# code (mimalloc, built with a newer GCC) and die with SIGILL on pre-Haswell / Atom-class CPUs,
+# including `rtk --version` during this build. Upstream: https://github.com/rtk-ai/rtk/issues/5043.
+# Move past v1.1.0 only once a release runs on baseline x86-64 again.
+ARG RTK_VERSION=v1.1.0
+ARG RTK_INSTALL_SHA256=7ca3997314f631b8ad267e5add9af4b7a2f0351bdab0b1c5a9b7ed4008d0434a
 RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VERSION}/install.sh" -o /tmp/rtk-install.sh \
  && echo "${RTK_INSTALL_SHA256}  /tmp/rtk-install.sh" | sha256sum -c - \
  && RTK_VERSION="${RTK_VERSION}" sh /tmp/rtk-install.sh \
@@ -228,8 +232,8 @@ RUN curl -fsSL "https://raw.githubusercontent.com/rtk-ai/rtk/refs/tags/${RTK_VER
 # would require running as root and the install script's flat layout would put
 # the binary at /usr/local/uv (not on the default PATH) — $HOME/.local/bin/uv is
 # simpler and matches the rtk install pattern.
-ARG UV_VERSION=0.12.19
-ARG UV_INSTALL_SHA256=61b349611f1b6e1ba33645f30c36da5287df2609dd7af8605d96a031435eb35b
+ARG UV_VERSION=0.13.10
+ARG UV_INSTALL_SHA256=51781aafe6950cc659f79873e1bdca55fbb9da6e0ef650bf98093a0f0aaaf453
 RUN mkdir -p "$HOME/.local/bin" \
  && curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" -o /tmp/uv-install.sh \
  && echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - \
@@ -242,11 +246,11 @@ RUN mkdir -p "$HOME/.local/bin" \
 # glab — GitLab CLI, so agents can interact with GitLab (MRs, issues, CI, etc.) from the command line.
 # Downloads the prebuilt binary tarball from the official release assets and verifies its SHA256
 # against the published checksums. Installs into $HOME/.local/bin (already on PATH via ENV PATH below).
-ARG GLAB_VERSION=1.119.0
+ARG GLAB_VERSION=1.133.0
 RUN GLAB_ARCH="$(uname -m)" \
  && case "${GLAB_ARCH}" in \
-      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="4d83375d202ffa634eaf627fd9272b610fa599f20f5b711f55d770583eca2b84" ;; \
-      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="8540c4afbe63c4da023c15bfce15f2f1ef9cc1afe4a6fd6812c426b9eeab073b" ;; \
+      x86_64)  GLAB_ARCH="amd64"; GLAB_SHA256="b17f858b8d700f1607f8ec02fe092a455da6a8dd18dac3eb6ccb09db1befd4bf" ;; \
+      aarch64) GLAB_ARCH="arm64"; GLAB_SHA256="a529fd254824b0f3f8d2350080c9b46633b67ff3e2b11455836d7a680c498b09" ;; \
       *) echo "Unsupported architecture: ${GLAB_ARCH}" && exit 1 ;; \
     esac \
  && curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_${GLAB_ARCH}.tar.gz" -o /tmp/glab.tar.gz \
@@ -259,11 +263,11 @@ RUN GLAB_ARCH="$(uname -m)" \
 
 # DuckDB — in-process SQL OLAP database CLI; useful for querying CSV/Parquet/SQLite/Postgres
 # and other data sources from the command line. Prebuilt binary from official GitHub releases.
-ARG DUCKDB_VERSION=v1.5.5
+ARG DUCKDB_VERSION=v1.5.6
 RUN DUCKDB_ARCH="$(uname -m)" \
  && case "${DUCKDB_ARCH}" in \
-      x86_64)  DUCKDB_ARCH="amd64"; DUCKDB_SHA256="c61f21485e6e41d3a0c28ce9904ea18346309cf427b4cf9479bc3564348dc885" ;; \
-      aarch64) DUCKDB_ARCH="arm64"; DUCKDB_SHA256="50c719e603a4e599d435e5321542458edc1cfc5f7eed65979fe9bc5ae4e3ba23" ;; \
+      x86_64)  DUCKDB_ARCH="amd64"; DUCKDB_SHA256="cce2687a38681db644c248198b99ecd86170ff47e324c5f33e50c0042f142839" ;; \
+      aarch64) DUCKDB_ARCH="arm64"; DUCKDB_SHA256="1af0541e649a3ae34eb20eec2ca564308bf0e8993e5d6dba6be77bfb289a2718" ;; \
       *) echo "Unsupported architecture: ${DUCKDB_ARCH}" && exit 1 ;; \
     esac \
  && curl -fsSL "https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/duckdb_cli-linux-${DUCKDB_ARCH}.gz" -o /tmp/duckdb.gz \
@@ -306,11 +310,11 @@ RUN SOPS_ARCH="$(uname -m)" \
  && "$HOME/.local/bin/sops" --version
 
 # mcp-proxy — stdio↔SSE/Streamable-HTTP bridge so any agent CLI can talk to remote MCP servers.
-# mcp-proxy 0.12.0 declares "mcp>=1.17.0" with no upper bound, so uv resolves the latest mcp
-# release. mcp 2.0.0 is a breaking rework that dropped mcp.server.lowlevel.server.request_ctx,
-# which mcp-proxy's proxy_server.py still imports — pin mcp below 2.0 until a mcp-proxy release
-# targets the new SDK.
-ARG MCP_PROXY_VERSION=v0.12.0
+# mcp 2.0.0 is a breaking rework that dropped mcp.server.lowlevel.server.request_ctx, which
+# mcp-proxy's proxy_server.py still imports. Since 0.15.0 mcp-proxy declares "mcp<2,>=1.30.0"
+# itself; the explicit `--with "mcp<2.0.0"` (added when 0.12.0 had no upper bound) is now
+# redundant but kept as a guard in case a future release relaxes the bound before porting.
+ARG MCP_PROXY_VERSION=v0.15.0
 RUN PATH="$HOME/.local/bin:$PATH" uv tool install "mcp-proxy==${MCP_PROXY_VERSION#v}" --with "mcp<2.0.0" \
  && PATH="$HOME/.local/bin:$PATH" mcp-proxy --version
 
@@ -390,7 +394,7 @@ ENV MULTICA_CURSOR_PATH=/home/${USERNAME}/.local/bin/cursor-agent
 FROM ${AGENT_BASE_IMAGE} AS opencode
 
 ARG USERNAME=agent
-ARG OPENCODE_VERSION=1.18.32
+ARG OPENCODE_VERSION=1.19.6
 
 # The two guards below are deliberately separate.
 #
@@ -446,7 +450,7 @@ RUN mkdir -p /home/${USERNAME}/.config/opencode /home/${USERNAME}/.local/share/o
 FROM ${AGENT_BASE_IMAGE} AS opencode-v2
 
 ARG USERNAME=agent
-ARG OPENCODE_V2_VERSION=2.0.18
+ARG OPENCODE_V2_VERSION=2.4.2
 
 # Same two guards as the v1 target: the 2.x version shape (the contract guard),
 # then the exact pin. See the comment there for why the shape and the pin are
