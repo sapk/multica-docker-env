@@ -68,15 +68,17 @@ if command -v rtk >/dev/null 2>&1; then
                 # shellcheck disable=SC2086 # deliberate word splitting into argv
                 ( rtk init ${rtk_disable_args} --uninstall ) || echo "[entrypoint] RTK uninstall failed for '${rtk_disable_args}'."
             done
-            # rtk has no uninstall for antigravity: `--uninstall` without -g exits
-            # 1 with "Uninstall only works with --global flag", and -g only sweeps
-            # ~/.claude, so neither touches the rules file the enable path wrote
-            # into the entrypoint's CWD. That one has to go by hand.
+            # antigravity is project-local (no -g): since rtk v1.x the enable path
+            # writes a plugin into ${PWD}/.agents/plugins/rtk, and
+            # `--agent antigravity --uninstall` removes it (exits 0 when absent).
+            ( rtk init --agent antigravity --uninstall ) || echo "[entrypoint] RTK uninstall failed for '--agent antigravity'."
+            # rtk v0.x wrote a bare rules file instead and had no uninstall for it;
+            # a workdir persisted from a v0.x image may still carry one.
             rm -f "${PWD}/.agents/rules/antigravity-rtk-rules.md"
             # Say what was attempted, not what was verified: rtk prints
             # "nothing to remove" while it is in fact deleting the opencode
             # plugin, so its own output is not evidence either way.
-            echo "[entrypoint] RTK disable: ran --uninstall for claude, cursor, codex, opencode and removed the antigravity rules file if present."
+            echo "[entrypoint] RTK disable: ran --uninstall for claude, cursor, codex, opencode, antigravity and removed the legacy antigravity rules file if present."
             ;;
         "")
             echo "[entrypoint] ENABLE_RTK unset — rtk not configured, no-op."
