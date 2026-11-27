@@ -20,6 +20,17 @@ It also ships [`git-flow`](https://github.com/petervanderdoes/gitflow-avh) (the 
 
 The base image includes [DuckDB](https://duckdb.org/) CLI for querying CSV, Parquet, JSON, SQLite, and other data sources directly from the command line.
 
+> [!IMPORTANT]
+> DuckDB 2.x x86_64 binaries require an **x86-64-v3 CPU (AVX2)** ([duckdb/duckdb#27691](https://github.com/duckdb/duckdb/issues/27691)).
+> On older CPUs (e.g. Ivy Bridge and earlier) `duckdb` dies with SIGILL, so the `base` build fails at its
+> `duckdb --version` check and the CLI won't run in containers either. GitHub-hosted runners have AVX2, so CI
+> won't catch this. For such hosts, revert to the 1.5.x block in `Dockerfile.agent`. The 1.x asset name,
+> extraction and checksums differ, so overriding `DUCKDB_VERSION` alone is not enough.
+>
+> DuckDB 2.x opens and writes database files created by 1.x, and those stay readable by 1.x. Files **created**
+> by 2.x cannot be opened by 1.x, so use `EXPORT DATABASE` to move data back to an older DuckDB. No extensions
+> are baked into the image; `INSTALL`ed extensions are fetched per DuckDB version at runtime.
+
 The base image includes [`age`](https://github.com/FiloSottile/age) and [`sops`](https://github.com/getsops/sops) for encrypting/decrypting secrets files (e.g. `.sops.yaml`-managed YAML/JSON/ENV secrets), so agents can work with encrypted config without an extra install step.
 
 The base image pre-installs Playwright browser binaries (Chromium, Firefox, WebKit) with a 5-minute timeout. System libraries for headless browsing (X11, NSS, ATK, Pango, GBM, fonts) are also included. If the installation times out during build, the build fails fast with diagnostics (memory, disk space). To adjust the timeout, pass `--build-arg PLAYWRIGHT_TIMEOUT=600` (seconds). Browsers are installed to `$PLAYWRIGHT_BROWSERS_PATH` (`~/.cache/ms-playwright` by default).
@@ -192,7 +203,7 @@ fires on 2.x — a 2.x server here reported zero loaded plugins under every conf
 | `UV_VERSION` | `0.13.10` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
 | `MCP_PROXY_VERSION` | `v0.15.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
 | `GLAB_VERSION` | `1.133.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
-| `DUCKDB_VERSION` | `v1.5.6` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
+| `DUCKDB_VERSION` | `v2.0.1` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI; x86_64 needs AVX2) |
 | `AGE_VERSION` | `v1.3.2` | [`age`](https://github.com/FiloSottile/age) release tag (file encryption tool) |
 | `SOPS_VERSION` | `v3.13.3` | [`sops`](https://github.com/getsops/sops) release tag (secrets file encryption CLI) |
 | `PLAYWRIGHT_TIMEOUT` | `300` | Seconds before Playwright browser install fails (timeout wrapper) |
