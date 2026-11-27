@@ -110,8 +110,8 @@ Verify either image before rolling it out. Use the absolute path: on the v1 imag
 fails there while succeeding on v2.
 
 ```bash
-docker run --rm --entrypoint /home/agent/.opencode/bin/opencode ghcr.io/sapk/multica-agent-opencode:latest --version       # 1.18.32
-docker run --rm --entrypoint /home/agent/.local/node-active/opencode ghcr.io/sapk/multica-agent-opencode-v2:latest --version  # opencode v2.0.18
+docker run --rm --entrypoint /home/agent/.opencode/bin/opencode ghcr.io/sapk/multica-agent-opencode:latest --version       # 1.19.6
+docker run --rm --entrypoint /home/agent/.local/node-active/opencode ghcr.io/sapk/multica-agent-opencode-v2:latest --version  # opencode v2.4.2
 ```
 
 ### 2.x cannot use Multica-managed MCP servers
@@ -156,11 +156,12 @@ Coverage of the disable path, per variant — rtk's own uninstall does not reach
 | --- | --- | --- | --- |
 | claude | `rtk init -g` | full | |
 | opencode | `rtk init -g --opencode` | full | removes `~/.config/opencode/plugins/rtk.ts` |
-| codex | `rtk init -g --codex` | full | |
+| codex | `rtk init -g --codex` | full | removes the hook entry and `RTK.md`; leaves an inert `~/.codex/hooks.json.bak` |
 | cursor | `rtk init -g --agent cursor` | **partial** | empties the `preToolUse` hook array, but leaves the `.claude/RTK.md` / `.claude/CLAUDE.md` awareness text and drops a `hooks.json.bak` |
-| antigravity | `rtk init --agent antigravity` | **by hand** | rtk refuses (`--uninstall` without `-g` exits 1; `-g` only sweeps `~/.claude`), so the entrypoint `rm`s the `.agents/rules/antigravity-rtk-rules.md` it wrote |
+| antigravity | `rtk init --agent antigravity` | full | project-local: `--agent antigravity --uninstall` removes `.agents/plugins/rtk/` from the entrypoint's CWD; the entrypoint also `rm`s the v0.x `.agents/rules/antigravity-rtk-rules.md` if a persisted workdir still has one |
 
-`--uninstall` is present in `v0.46.0` (the pinned version) and `v0.50.0`.
+Verified against `v1.1.0` (the pinned version). rtk is held there: the `v1.2.x` x86_64 binaries
+die with SIGILL on CPUs without AVX2 ([rtk-ai/rtk#5043](https://github.com/rtk-ai/rtk/issues/5043)).
 The generated plugin type-imports `@opencode-ai/plugin`; that is a type-only import, so it is erased
 at compile time and is not itself a risk. What is **unverified** is whether the rewrite hook actually
 fires on 2.x — a 2.x server here reported zero loaded plugins under every configuration tried.
@@ -182,16 +183,16 @@ fires on 2.x — a 2.x server here reported zero loaded plugins under every conf
 | `GIT_USER_NAME` / `GIT_USER_EMAIL` | placeholder | Baked `.gitconfig` |
 | `NVM_VERSION` | `master` | nvm ref (`master` = rolling; pin e.g. `0.40.4`) |
 | `NODE_VERSION` | `node` | Node via nvm (`node` = latest; pin e.g. `24.15.0`) |
-| `OPENCODE_VERSION` | `1.18.32` | OpenCode 1.x release, for the `opencode` target |
-| `OPENCODE_V2_VERSION` | `2.0.18` | [`@opencode/cli`](https://www.npmjs.com/package/@opencode/cli) version, for the `opencode-v2` target |
-| `PLAYWRIGHT_VERSION` | `1.63.0` | [`@playwright/test`](https://playwright.dev/) version (coupled to the system-library list in `Dockerfile.agent`) |
-| `GO_VERSION` | `1.27.1` | [Go](https://go.dev/dl/) toolchain release |
-| `GOLANGCI_LINT_VERSION` | `v2.14.0` | [`golangci-lint`](https://github.com/golangci/golangci-lint) release tag (Go static analysis) |
-| `RTK_VERSION` | `v0.50.0` | [`rtk`](https://github.com/rtk-ai/rtk) release tag (token-optimised CLI proxy) |
-| `UV_VERSION` | `0.12.19` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
-| `MCP_PROXY_VERSION` | `v0.12.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
-| `GLAB_VERSION` | `1.119.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
-| `DUCKDB_VERSION` | `v1.5.5` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
+| `OPENCODE_VERSION` | `1.19.6` | OpenCode 1.x release, for the `opencode` target |
+| `OPENCODE_V2_VERSION` | `2.4.2` | [`@opencode/cli`](https://www.npmjs.com/package/@opencode/cli) version, for the `opencode-v2` target |
+| `PLAYWRIGHT_VERSION` | `1.65.1` | [`@playwright/test`](https://playwright.dev/) version (coupled to the system-library list in `Dockerfile.agent`) |
+| `GO_VERSION` | `1.27.4` | [Go](https://go.dev/dl/) toolchain release |
+| `GOLANGCI_LINT_VERSION` | `v2.15.0` | [`golangci-lint`](https://github.com/golangci/golangci-lint) release tag (Go static analysis) |
+| `RTK_VERSION` | `v1.1.0` | [`rtk`](https://github.com/rtk-ai/rtk) release tag (token-optimised CLI proxy) |
+| `UV_VERSION` | `0.13.10` | [`uv`](https://github.com/astral-sh/uv) release tag (used by `uv tool install` to install `mcp-proxy`) |
+| `MCP_PROXY_VERSION` | `v0.15.0` | [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) release tag (stdio↔SSE/Streamable-HTTP bridge) |
+| `GLAB_VERSION` | `1.133.0` | [`glab`](https://gitlab.com/gitlab-org/cli) release tag (GitLab CLI) |
+| `DUCKDB_VERSION` | `v1.5.6` | [`DuckDB`](https://duckdb.org/) release tag (in-process SQL OLAP CLI) |
 | `AGE_VERSION` | `v1.3.2` | [`age`](https://github.com/FiloSottile/age) release tag (file encryption tool) |
 | `SOPS_VERSION` | `v3.13.3` | [`sops`](https://github.com/getsops/sops) release tag (secrets file encryption CLI) |
 | `PLAYWRIGHT_TIMEOUT` | `300` | Seconds before Playwright browser install fails (timeout wrapper) |
