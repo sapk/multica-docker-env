@@ -22,7 +22,7 @@ The base image includes [DuckDB](https://duckdb.org/) CLI for querying CSV, Parq
 
 > [!IMPORTANT]
 > DuckDB 2.x x86_64 binaries require an **x86-64-v3 CPU (AVX2)** ([duckdb/duckdb#27691](https://github.com/duckdb/duckdb/issues/27691)).
-> On older CPUs (e.g. Ivy Bridge and earlier) `duckdb` dies with SIGILL, so the `base` build fails at its
+> On CPUs without AVX2 `duckdb` dies with SIGILL, so the `base` build fails at its
 > `duckdb --version` check and the CLI won't run in containers either. GitHub-hosted runners have AVX2, so CI
 > won't catch this. For such hosts, revert to the 1.5.x block in `Dockerfile.agent`. The 1.x asset name,
 > extraction and checksums differ, so overriding `DUCKDB_VERSION` alone is not enough.
